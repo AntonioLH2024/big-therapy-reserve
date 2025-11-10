@@ -57,24 +57,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "citas_paciente_id_fkey"
-            columns: ["paciente_id"]
-            isOneToOne: false
-            referencedRelation: "psychologist_public_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "citas_psicologo_id_fkey"
             columns: ["psicologo_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "citas_psicologo_id_fkey"
-            columns: ["psicologo_id"]
-            isOneToOne: false
-            referencedRelation: "psychologist_public_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -145,13 +131,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "psicologo_detalles_id_fkey"
-            columns: ["id"]
-            isOneToOne: true
-            referencedRelation: "psychologist_public_directory"
-            referencedColumns: ["id"]
-          },
         ]
       }
       user_roles: {
@@ -177,19 +156,7 @@ export type Database = {
       }
     }
     Views: {
-      psychologist_public_directory: {
-        Row: {
-          apellidos: string | null
-          biografia: string | null
-          created_at: string | null
-          especialidad: string[] | null
-          foto_url: string | null
-          id: string | null
-          nombre: string | null
-          servicios: string[] | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       has_role: {
