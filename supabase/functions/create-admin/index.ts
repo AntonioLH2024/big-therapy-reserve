@@ -24,9 +24,44 @@ serve(async (req) => {
       }
     );
 
+    // Verify caller is an admin
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized: No authorization header" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      );
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user: callingUser }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    
+    if (userError || !callingUser) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized: Invalid token" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      );
+    }
+
+    // Check if calling user has admin role
+    const { data: userRoles } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", callingUser.id)
+      .eq("role", "admin")
+      .single();
+
+    if (!userRoles) {
+      console.log("Non-admin user attempted to create admin:", callingUser.email);
+      return new Response(
+        JSON.stringify({ error: "Forbidden: Only admins can create admin accounts" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+      );
+    }
+
     const { email, password, userData } = await req.json();
 
-    console.log("Creating admin user:", email);
+    console.log("Admin creating new admin user:", email);
 
     // Create user with admin API
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -43,18 +78,31 @@ serve(async (req) => {
 
     console.log("User created successfully:", authData.user.id);
 
-    // Update role to admin
+    // Update role to admin in profiles
     const { error: updateError } = await supabaseAdmin
       .from("profiles")
       .update({ role: "admin" })
       .eq("id", authData.user.id);
 
     if (updateError) {
-      console.error("Error updating role:", updateError);
+      console.error("Error updating profile role:", updateError);
       throw updateError;
     }
 
-    console.log("Role updated to admin successfully");
+    // Insert admin role in user_roles table
+    const { error: roleError } = await supabaseAdmin
+      .from("user_roles")
+      .insert({
+        user_id: authData.user.id,
+        role: "admin",
+      });
+
+    if (roleError) {
+      console.error("Error inserting user role:", roleError);
+      throw roleError;
+    }
+
+    console.log("Admin role assigned successfully");
 
     return new Response(
       JSON.stringify({

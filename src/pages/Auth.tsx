@@ -7,6 +7,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/integrations/supabase/auth";
+import { toast } from "sonner";
+import { z } from "zod";
+
+const authSchema = z.object({
+  email: z.string().email("Email inválido").max(255, "Email muy largo"),
+  password: z.string().min(6, "Mínimo 6 caracteres").max(100, "Contraseña muy larga"),
+});
+
+const signupSchema = authSchema.extend({
+  nombre: z.string().trim().min(1, "Nombre requerido").max(100, "Nombre muy largo"),
+  apellidos: z.string().trim().min(1, "Apellidos requeridos").max(100, "Apellidos muy largos"),
+  telefono: z.string().regex(/^[+]?[0-9\s-]{9,20}$/, "Teléfono inválido"),
+  role: z.enum(["paciente", "psicologo"], { required_error: "Selecciona un rol" }),
+});
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -28,8 +42,16 @@ const Auth = () => {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
-    await signIn(email, password);
-    setLoading(false);
+    try {
+      const validated = authSchema.parse({ email, password });
+      await signIn(validated.email, validated.password);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -44,14 +66,29 @@ const Auth = () => {
     const telefono = formData.get("phone") as string;
     const role = formData.get("role") as string;
 
-    await signUp(email, password, {
-      nombre,
-      apellidos,
-      telefono,
-      role,
-    });
-    
-    setLoading(false);
+    try {
+      const validated = signupSchema.parse({
+        email,
+        password,
+        nombre,
+        apellidos,
+        telefono,
+        role,
+      });
+
+      await signUp(validated.email, validated.password, {
+        nombre: validated.nombre,
+        apellidos: validated.apellidos,
+        telefono: validated.telefono,
+        role: validated.role,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
