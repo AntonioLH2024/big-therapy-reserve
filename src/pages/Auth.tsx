@@ -1,35 +1,57 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import { useAuth } from "@/integrations/supabase/auth";
 
 const Auth = () => {
   const navigate = useNavigate();
+  const { signIn, signUp, user } = useAuth();
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Redirect if already logged in
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    // Placeholder for authentication
-    setTimeout(() => {
-      toast.success("Inicio de sesión exitoso");
-      setLoading(false);
-      navigate("/");
-    }, 1000);
+    
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    await signIn(email, password);
+    setLoading(false);
   };
 
   const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    // Placeholder for signup
-    setTimeout(() => {
-      toast.success("Cuenta creada exitosamente");
-      setLoading(false);
-    }, 1000);
+    
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("signupEmail") as string;
+    const password = formData.get("signupPassword") as string;
+    const nombre = formData.get("firstName") as string;
+    const apellidos = formData.get("lastName") as string;
+    const telefono = formData.get("phone") as string;
+    const role = formData.get("role") as string;
+
+    await signUp(email, password, {
+      nombre,
+      apellidos,
+      telefono,
+      role,
+    });
+    
+    setLoading(false);
   };
 
   return (
@@ -65,6 +87,7 @@ const Auth = () => {
                     <Label htmlFor="email">Email</Label>
                     <Input
                       id="email"
+                      name="email"
                       type="email"
                       placeholder="tu@email.com"
                       required
@@ -75,6 +98,7 @@ const Auth = () => {
                     <Label htmlFor="password">Contraseña</Label>
                     <Input
                       id="password"
+                      name="password"
                       type="password"
                       required
                       className="bg-background"
@@ -107,6 +131,7 @@ const Auth = () => {
                       <Label htmlFor="firstName">Nombre</Label>
                       <Input
                         id="firstName"
+                        name="firstName"
                         type="text"
                         required
                         className="bg-background"
@@ -116,6 +141,7 @@ const Auth = () => {
                       <Label htmlFor="lastName">Apellidos</Label>
                       <Input
                         id="lastName"
+                        name="lastName"
                         type="text"
                         required
                         className="bg-background"
@@ -126,6 +152,7 @@ const Auth = () => {
                     <Label htmlFor="signupEmail">Email</Label>
                     <Input
                       id="signupEmail"
+                      name="signupEmail"
                       type="email"
                       placeholder="tu@email.com"
                       required
@@ -136,6 +163,7 @@ const Auth = () => {
                     <Label htmlFor="phone">Teléfono</Label>
                     <Input
                       id="phone"
+                      name="phone"
                       type="tel"
                       placeholder="+34 600 000 000"
                       required
@@ -143,9 +171,22 @@ const Auth = () => {
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="role">Tipo de Usuario</Label>
+                    <Select name="role" defaultValue="paciente" required>
+                      <SelectTrigger className="bg-background">
+                        <SelectValue placeholder="Selecciona tu rol" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="paciente">Paciente</SelectItem>
+                        <SelectItem value="psicologo">Psicólogo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="signupPassword">Contraseña</Label>
                     <Input
                       id="signupPassword"
+                      name="signupPassword"
                       type="password"
                       required
                       className="bg-background"

@@ -1,11 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Brain, Users, FileText, Calendar } from "lucide-react";
+import { Brain, Users, FileText, Calendar, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/integrations/supabase/auth";
 import heroImage from "@/assets/hero-therapy.jpg";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
 
   const services = [
     {
@@ -41,9 +43,16 @@ const Index = () => {
             <a href="#contacto" className="text-foreground hover:text-primary transition-colors">
               Contacto
             </a>
-            <Button variant="outline" onClick={() => navigate("/auth")}>
-              Iniciar Sesión
-            </Button>
+            {user ? (
+              <Button variant="outline" onClick={signOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Cerrar Sesión
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={() => navigate("/auth")}>
+                Iniciar Sesión
+              </Button>
+            )}
           </nav>
         </div>
       </header>
