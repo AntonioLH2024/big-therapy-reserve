@@ -1,13 +1,31 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Brain, Users, FileText, Calendar, LogOut } from "lucide-react";
+import { Brain, Users, FileText, Calendar, LogOut, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/integrations/supabase/auth";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import heroImage from "@/assets/hero-therapy.jpg";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user, userRole, signOut } = useAuth();
+  const [userName, setUserName] = useState<string>("");
+
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from("profiles")
+        .select("nombre, apellidos")
+        .eq("id", user.id)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            setUserName(`${data.nombre} ${data.apellidos}`);
+          }
+        });
+    }
+  }, [user]);
 
   const services = [
     {
@@ -44,10 +62,24 @@ const Index = () => {
               Contacto
             </a>
             {user ? (
-              <Button variant="outline" onClick={signOut}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Cerrar Sesión
-              </Button>
+              <>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => {
+                    if (userRole === "admin") navigate("/dashboard/admin");
+                    else if (userRole === "psicologo") navigate("/dashboard/psicologo");
+                    else if (userRole === "paciente") navigate("/dashboard/paciente");
+                  }}
+                  className="text-foreground hover:text-primary"
+                >
+                  <User className="mr-2 h-4 w-4" />
+                  {userName || "Mi Panel"}
+                </Button>
+                <Button variant="outline" onClick={signOut}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Cerrar Sesión
+                </Button>
+              </>
             ) : (
               <Button variant="outline" onClick={() => navigate("/auth")}>
                 Iniciar Sesión

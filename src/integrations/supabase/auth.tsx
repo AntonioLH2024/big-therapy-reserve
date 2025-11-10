@@ -113,9 +113,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     if (error) {
       toast.error("Credenciales incorrectas");
-    } else {
+      return { error };
+    }
+    
+    // Get user role and redirect accordingly
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      
       toast.success("Sesión iniciada");
-      navigate("/");
+      
+      // Redirect based on role
+      if (profile?.role === "admin") {
+        navigate("/dashboard/admin");
+      } else if (profile?.role === "psicologo") {
+        navigate("/dashboard/psicologo");
+      } else if (profile?.role === "paciente") {
+        navigate("/dashboard/paciente");
+      } else {
+        navigate("/");
+      }
     }
     
     return { error };

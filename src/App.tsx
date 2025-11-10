@@ -8,6 +8,9 @@ import Index from "./pages/Index";
 import Servicios from "./pages/Servicios";
 import Auth from "./pages/Auth";
 import CreateAdmin from "./pages/CreateAdmin";
+import AdminDashboard from "./pages/dashboard/AdminDashboard";
+import PsicologoDashboard from "./pages/dashboard/PsicologoDashboard";
+import PacienteDashboard from "./pages/dashboard/PacienteDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +27,9 @@ const App = () => (
             <Route path="/servicios" element={<Servicios />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/create-admin" element={<CreateAdmin />} />
+            <Route path="/dashboard/admin" element={<AdminDashboard />} />
+            <Route path="/dashboard/psicologo" element={<PsicologoDashboard />} />
+            <Route path="/dashboard/paciente" element={<PacienteDashboard />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
