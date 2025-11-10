@@ -7,6 +7,7 @@ import { LogOut, Calendar, History, User } from "lucide-react";
 import { NextAppointment } from "@/components/paciente/NextAppointment";
 import { AppointmentHistory } from "@/components/paciente/AppointmentHistory";
 import { ProfileEditor } from "@/components/paciente/ProfileEditor";
+import { AppointmentScheduler } from "@/components/paciente/AppointmentScheduler";
 
 const PacienteDashboard = () => {
   const navigate = useNavigate();
@@ -65,13 +66,7 @@ const PacienteDashboard = () => {
 
           <TabsContent value="proxima" className="space-y-6">
             <NextAppointment />
-            <Button 
-              className="bg-primary hover:bg-primary/90"
-              onClick={() => navigate("/servicios")}
-            >
-              <Calendar className="mr-2 h-4 w-4" />
-              Buscar Psicólogo
-            </Button>
+            <AppointmentScheduler />
           </TabsContent>
 
           <TabsContent value="historial">
