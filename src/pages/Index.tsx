@@ -6,47 +6,39 @@ import { useAuth } from "@/integrations/supabase/auth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import heroImage from "@/assets/hero-therapy.jpg";
-
 const Index = () => {
   const navigate = useNavigate();
-  const { user, userRole, signOut } = useAuth();
+  const {
+    user,
+    userRole,
+    signOut
+  } = useAuth();
   const [userName, setUserName] = useState<string>("");
-
   useEffect(() => {
     if (user) {
-      supabase
-        .from("profiles")
-        .select("nombre, apellidos")
-        .eq("id", user.id)
-        .single()
-        .then(({ data }) => {
-          if (data) {
-            setUserName(`${data.nombre} ${data.apellidos}`);
-          }
-        });
+      supabase.from("profiles").select("nombre, apellidos").eq("id", user.id).single().then(({
+        data
+      }) => {
+        if (data) {
+          setUserName(`${data.nombre} ${data.apellidos}`);
+        }
+      });
     }
   }, [user]);
-
-  const services = [
-    {
-      icon: Brain,
-      title: "Consulta Individual",
-      description: "Sesiones personalizadas enfocadas en tu bienestar mental y desarrollo personal.",
-    },
-    {
-      icon: Users,
-      title: "Terapia de Parejas",
-      description: "Fortalece tu relación con apoyo profesional especializado.",
-    },
-    {
-      icon: FileText,
-      title: "Evaluación Psicológica",
-      description: "Diagnósticos precisos e informes profesionales detallados.",
-    },
-  ];
-
-  return (
-    <div className="min-h-screen bg-background">
+  const services = [{
+    icon: Brain,
+    title: "Consulta Individual",
+    description: "Sesiones personalizadas enfocadas en tu bienestar mental y desarrollo personal."
+  }, {
+    icon: Users,
+    title: "Terapia de Parejas",
+    description: "Fortalece tu relación con apoyo profesional especializado."
+  }, {
+    icon: FileText,
+    title: "Evaluación Psicológica",
+    description: "Diagnósticos precisos e informes profesionales detallados."
+  }];
+  return <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -61,17 +53,10 @@ const Index = () => {
             <a href="#contacto" className="text-foreground hover:text-primary transition-colors">
               Contacto
             </a>
-            {user ? (
-              <>
-                <Button 
-                  variant="ghost" 
-                  onClick={() => {
-                    if (userRole === "admin") navigate("/dashboard/admin");
-                    else if (userRole === "psicologo") navigate("/dashboard/psicologo");
-                    else if (userRole === "paciente") navigate("/dashboard/paciente");
-                  }}
-                  className="text-foreground hover:text-primary"
-                >
+            {user ? <>
+                <Button variant="ghost" onClick={() => {
+              if (userRole === "admin") navigate("/dashboard/admin");else if (userRole === "psicologo") navigate("/dashboard/psicologo");else if (userRole === "paciente") navigate("/dashboard/paciente");
+            }} className="text-foreground hover:text-primary">
                   <User className="mr-2 h-4 w-4" />
                   {userName || "Mi Panel"}
                 </Button>
@@ -79,27 +64,21 @@ const Index = () => {
                   <LogOut className="mr-2 h-4 w-4" />
                   Cerrar Sesión
                 </Button>
-              </>
-            ) : (
-              <Button variant="outline" onClick={() => navigate("/auth")}>
+              </> : <Button variant="outline" onClick={() => navigate("/auth")}>
                 Iniciar Sesión
-              </Button>
-            )}
+              </Button>}
           </nav>
         </div>
       </header>
 
       {/* Hero Section */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: `url(${heroImage})`,
-          }}
-        >
+        <div className="absolute inset-0 bg-cover bg-center" style={{
+        backgroundImage: `url(${heroImage})`
+      }}>
           <div className="absolute inset-0 bg-gradient-to-r from-background via-background/90 to-background/70" />
         </div>
-        <div className="container mx-auto px-4 relative z-10">
+        <div className="container mx-auto relative z-10 py-[50px] px-[200px]">
           <div className="max-w-3xl">
             <h2 className="text-5xl md:text-7xl font-bold mb-6 text-foreground leading-tight">
               Tu Bienestar Mental es Nuestra{" "}
@@ -108,11 +87,7 @@ const Index = () => {
             <p className="text-xl md:text-2xl mb-8 text-muted-foreground">
               Conecta con psicólogos especializados y reserva tu cita en minutos
             </p>
-            <Button
-              size="lg"
-              className="text-lg px-8 py-6 bg-primary hover:bg-primary/90"
-              onClick={() => navigate("/servicios")}
-            >
+            <Button size="lg" className="text-lg px-8 py-6 bg-primary hover:bg-primary/90" onClick={() => navigate("/servicios")}>
               <Calendar className="mr-2 h-5 w-5" />
               Reservar Cita
             </Button>
@@ -130,12 +105,7 @@ const Index = () => {
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {services.map((service, index) => (
-              <Card
-                key={index}
-                className="bg-background border-border hover:border-primary transition-all duration-300 cursor-pointer group"
-                onClick={() => navigate("/servicios")}
-              >
+            {services.map((service, index) => <Card key={index} className="bg-background border-border hover:border-primary transition-all duration-300 cursor-pointer group" onClick={() => navigate("/servicios")}>
                 <CardContent className="p-8 text-center">
                   <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                     <service.icon className="h-8 w-8 text-primary" />
@@ -146,8 +116,7 @@ const Index = () => {
                     Ver Detalles
                   </Button>
                 </CardContent>
-              </Card>
-            ))}
+              </Card>)}
           </div>
         </div>
       </section>
@@ -161,11 +130,7 @@ const Index = () => {
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
             Agenda tu primera cita hoy y da el primer paso hacia tu bienestar
           </p>
-          <Button
-            size="lg"
-            className="text-lg px-8 py-6 bg-primary hover:bg-primary/90"
-            onClick={() => navigate("/servicios")}
-          >
+          <Button size="lg" className="text-lg px-8 py-6 bg-primary hover:bg-primary/90" onClick={() => navigate("/servicios")}>
             Reservar Ahora
           </Button>
         </div>
@@ -227,8 +192,6 @@ const Index = () => {
           </div>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
