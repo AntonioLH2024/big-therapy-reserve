@@ -5,22 +5,49 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { toast } from "sonner";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+
+const profileSchema = z.object({
+  nombre: z.string().trim().min(1, "Nombre requerido").max(100, "Nombre muy largo"),
+  apellidos: z.string().trim().min(1, "Apellidos requeridos").max(100, "Apellidos muy largos"),
+  telefono: z.string().regex(/^[+]?[0-9\s-]{9,20}$/, "Teléfono inválido").optional().or(z.literal("")),
+});
+
+const detailsSchema = z.object({
+  especialidad: z.string().max(500, "Especialidades muy largas").optional().or(z.literal("")),
+  servicios: z.string().max(500, "Servicios muy largos").optional().or(z.literal("")),
+  biografia: z.string().max(2000, "Biografía muy larga (máx 2000 caracteres)").optional().or(z.literal("")),
+  foto_url: z.string().url("URL inválida").max(500, "URL muy larga").optional().or(z.literal("")),
+});
+
+type ProfileFormData = z.infer<typeof profileSchema>;
+type DetailsFormData = z.infer<typeof detailsSchema>;
 
 export const ProfileEditor = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState({
-    nombre: "",
-    apellidos: "",
-    telefono: "",
+
+  const profileForm = useForm<ProfileFormData>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      nombre: "",
+      apellidos: "",
+      telefono: "",
+    },
   });
-  const [details, setDetails] = useState({
-    especialidad: [] as string[],
-    servicios: [] as string[],
-    biografia: "",
-    foto_url: "",
+
+  const detailsForm = useForm<DetailsFormData>({
+    resolver: zodResolver(detailsSchema),
+    defaultValues: {
+      especialidad: "",
+      servicios: "",
+      biografia: "",
+      foto_url: "",
+    },
   });
 
   useEffect(() => {
@@ -40,7 +67,7 @@ export const ProfileEditor = () => {
     if (error) {
       toast.error("Error al cargar perfil");
     } else if (data) {
-      setProfile({
+      profileForm.reset({
         nombre: data.nombre || "",
         apellidos: data.apellidos || "",
         telefono: data.telefono || "",
@@ -57,56 +84,66 @@ export const ProfileEditor = () => {
       .maybeSingle();
 
     if (!error && data) {
-      setDetails({
-        especialidad: data.especialidad || [],
-        servicios: data.servicios || [],
+      detailsForm.reset({
+        especialidad: (data.especialidad || []).join(", "),
+        servicios: (data.servicios || []).join(", "),
         biografia: data.biografia || "",
         foto_url: data.foto_url || "",
       });
     }
   };
 
-  const handleSaveProfile = async () => {
-    const { error } = await supabase
-      .from("profiles")
-      .update(profile)
-      .eq("id", user?.id);
+  const onSaveProfile = async (data: ProfileFormData) => {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          nombre: data.nombre,
+          apellidos: data.apellidos,
+          telefono: data.telefono || null,
+        })
+        .eq("id", user?.id);
 
-    if (error) {
-      toast.error("Error al actualizar perfil");
-    } else {
+      if (error) throw error;
       toast.success("Perfil actualizado");
+    } catch (error) {
+      toast.error("Error al actualizar perfil");
     }
   };
 
-  const handleSaveDetails = async () => {
-    const { data: existing } = await supabase
-      .from("psicologo_detalles")
-      .select("id")
-      .eq("id", user?.id)
-      .maybeSingle();
-
-    if (existing) {
-      const { error } = await supabase
+  const onSaveDetails = async (data: DetailsFormData) => {
+    try {
+      const { data: existing } = await supabase
         .from("psicologo_detalles")
-        .update(details)
-        .eq("id", user?.id);
+        .select("id")
+        .eq("id", user?.id)
+        .maybeSingle();
 
-      if (error) {
-        toast.error("Error al actualizar detalles");
-      } else {
+      const detailsData = {
+        especialidad: data.especialidad ? data.especialidad.split(",").map(s => s.trim()).filter(Boolean) : [],
+        servicios: data.servicios ? data.servicios.split(",").map(s => s.trim()).filter(Boolean) : [],
+        biografia: data.biografia || null,
+        foto_url: data.foto_url || null,
+      };
+
+      if (existing) {
+        const { error } = await supabase
+          .from("psicologo_detalles")
+          .update(detailsData)
+          .eq("id", user?.id);
+
+        if (error) throw error;
         toast.success("Detalles actualizados");
-      }
-    } else {
-      const { error } = await supabase
-        .from("psicologo_detalles")
-        .insert({ ...details, id: user?.id });
-
-      if (error) {
-        toast.error("Error al crear detalles");
       } else {
+        const { error } = await supabase
+          .from("psicologo_detalles")
+          .insert({ ...detailsData, id: user?.id });
+
+        if (error) throw error;
         toast.success("Detalles creados");
       }
+    } catch (error) {
+      toast.error("Error al guardar detalles");
     }
   };
 
@@ -120,34 +157,53 @@ export const ProfileEditor = () => {
         <CardHeader>
           <CardTitle className="text-foreground">Información Personal</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label className="text-foreground">Nombre</Label>
-            <Input
-              className="bg-background border-border text-foreground"
-              value={profile.nombre}
-              onChange={(e) => setProfile({ ...profile, nombre: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label className="text-foreground">Apellidos</Label>
-            <Input
-              className="bg-background border-border text-foreground"
-              value={profile.apellidos}
-              onChange={(e) => setProfile({ ...profile, apellidos: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label className="text-foreground">Teléfono</Label>
-            <Input
-              className="bg-background border-border text-foreground"
-              value={profile.telefono}
-              onChange={(e) => setProfile({ ...profile, telefono: e.target.value })}
-            />
-          </div>
-          <Button onClick={handleSaveProfile} className="w-full">
-            Guardar Información Personal
-          </Button>
+        <CardContent>
+          <Form {...profileForm}>
+            <form onSubmit={profileForm.handleSubmit(onSaveProfile)} className="space-y-4">
+              <FormField
+                control={profileForm.control}
+                name="nombre"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nombre</FormLabel>
+                    <FormControl>
+                      <Input {...field} className="bg-background" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={profileForm.control}
+                name="apellidos"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Apellidos</FormLabel>
+                    <FormControl>
+                      <Input {...field} className="bg-background" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={profileForm.control}
+                name="telefono"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Teléfono</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="tel" placeholder="+34 600 000 000" className="bg-background" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" disabled={profileForm.formState.isSubmitting} className="w-full">
+                {profileForm.formState.isSubmitting ? "Guardando..." : "Guardar Información Personal"}
+              </Button>
+            </form>
+          </Form>
         </CardContent>
       </Card>
 
@@ -155,47 +211,84 @@ export const ProfileEditor = () => {
         <CardHeader>
           <CardTitle className="text-foreground">Perfil Profesional</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label className="text-foreground">Especialidades (separadas por coma)</Label>
-            <Input
-              className="bg-background border-border text-foreground"
-              value={details.especialidad.join(", ")}
-              onChange={(e) => setDetails({ ...details, especialidad: e.target.value.split(",").map(s => s.trim()) })}
-              placeholder="Ej: Terapia Cognitiva, Ansiedad, Depresión"
-            />
-          </div>
-          <div>
-            <Label className="text-foreground">Servicios (separados por coma)</Label>
-            <Input
-              className="bg-background border-border text-foreground"
-              value={details.servicios.join(", ")}
-              onChange={(e) => setDetails({ ...details, servicios: e.target.value.split(",").map(s => s.trim()) })}
-              placeholder="Ej: Terapia Individual, Terapia de Pareja"
-            />
-          </div>
-          <div>
-            <Label className="text-foreground">Biografía</Label>
-            <Textarea
-              className="bg-background border-border text-foreground"
-              value={details.biografia}
-              onChange={(e) => setDetails({ ...details, biografia: e.target.value })}
-              placeholder="Cuéntanos sobre tu experiencia profesional..."
-              rows={5}
-            />
-          </div>
-          <div>
-            <Label className="text-foreground">URL de Foto de Perfil</Label>
-            <Input
-              className="bg-background border-border text-foreground"
-              value={details.foto_url}
-              onChange={(e) => setDetails({ ...details, foto_url: e.target.value })}
-              placeholder="https://ejemplo.com/foto.jpg"
-            />
-          </div>
-          <Button onClick={handleSaveDetails} className="w-full">
-            Guardar Perfil Profesional
-          </Button>
+        <CardContent>
+          <Form {...detailsForm}>
+            <form onSubmit={detailsForm.handleSubmit(onSaveDetails)} className="space-y-4">
+              <FormField
+                control={detailsForm.control}
+                name="especialidad"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Especialidades (separadas por coma)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        placeholder="Ej: Terapia Cognitiva, Ansiedad, Depresión" 
+                        className="bg-background" 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={detailsForm.control}
+                name="servicios"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Servicios (separados por coma)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        placeholder="Ej: Terapia Individual, Terapia de Pareja" 
+                        className="bg-background" 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={detailsForm.control}
+                name="biografia"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Biografía (máx 2000 caracteres)</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        {...field} 
+                        placeholder="Cuéntanos sobre tu experiencia profesional..." 
+                        rows={5} 
+                        className="bg-background" 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={detailsForm.control}
+                name="foto_url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL de Foto de Perfil</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        type="url" 
+                        placeholder="https://ejemplo.com/foto.jpg" 
+                        className="bg-background" 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" disabled={detailsForm.formState.isSubmitting} className="w-full">
+                {detailsForm.formState.isSubmitting ? "Guardando..." : "Guardar Perfil Profesional"}
+              </Button>
+            </form>
+          </Form>
         </CardContent>
       </Card>
     </div>

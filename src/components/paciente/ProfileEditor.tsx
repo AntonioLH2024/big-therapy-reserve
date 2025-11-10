@@ -1,19 +1,34 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/integrations/supabase/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { toast } from "sonner";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+
+const profileSchema = z.object({
+  nombre: z.string().trim().min(1, "Nombre requerido").max(100, "Nombre muy largo"),
+  apellidos: z.string().trim().min(1, "Apellidos requeridos").max(100, "Apellidos muy largos"),
+  telefono: z.string().regex(/^[+]?[0-9\s-]{9,20}$/, "Teléfono inválido").optional().or(z.literal("")),
+});
+
+type ProfileFormData = z.infer<typeof profileSchema>;
 
 export const ProfileEditor = () => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [profile, setProfile] = useState({
-    nombre: "",
-    apellidos: "",
-    telefono: "",
+
+  const form = useForm<ProfileFormData>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      nombre: "",
+      apellidos: "",
+      telefono: "",
+    },
   });
 
   useEffect(() => {
@@ -32,28 +47,25 @@ export const ProfileEditor = () => {
 
       if (error) throw error;
       if (data) {
-        setProfile({
+        form.reset({
           nombre: data.nombre || "",
           apellidos: data.apellidos || "",
           telefono: data.telefono || "",
         });
       }
     } catch (error: any) {
-      console.error("Error fetching profile:", error);
+      toast.error("Error al cargar perfil");
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
+  const onSubmit = async (data: ProfileFormData) => {
     try {
       const { error } = await supabase
         .from("profiles")
         .update({
-          nombre: profile.nombre,
-          apellidos: profile.apellidos,
-          telefono: profile.telefono,
+          nombre: data.nombre,
+          apellidos: data.apellidos,
+          telefono: data.telefono || null,
         })
         .eq("id", user?.id);
 
@@ -62,9 +74,6 @@ export const ProfileEditor = () => {
       toast.success("Perfil actualizado correctamente");
     } catch (error: any) {
       toast.error("Error al actualizar el perfil");
-      console.error("Error:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -74,38 +83,56 @@ export const ProfileEditor = () => {
         <CardTitle className="text-foreground">Datos Personales</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="nombre">Nombre</Label>
-            <Input
-              id="nombre"
-              value={profile.nombre}
-              onChange={(e) => setProfile({ ...profile, nombre: e.target.value })}
-              required
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="nombre"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nombre</FormLabel>
+                  <FormControl>
+                    <Input {...field} className="bg-background" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div>
-            <Label htmlFor="apellidos">Apellidos</Label>
-            <Input
-              id="apellidos"
-              value={profile.apellidos}
-              onChange={(e) => setProfile({ ...profile, apellidos: e.target.value })}
-              required
+            <FormField
+              control={form.control}
+              name="apellidos"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Apellidos</FormLabel>
+                  <FormControl>
+                    <Input {...field} className="bg-background" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div>
-            <Label htmlFor="telefono">Teléfono</Label>
-            <Input
-              id="telefono"
-              type="tel"
-              value={profile.telefono}
-              onChange={(e) => setProfile({ ...profile, telefono: e.target.value })}
+            <FormField
+              control={form.control}
+              name="telefono"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Teléfono</FormLabel>
+                  <FormControl>
+                    <Input {...field} type="tel" placeholder="+34 600 000 000" className="bg-background" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <Button type="submit" disabled={loading} className="bg-primary hover:bg-primary/90">
-            {loading ? "Guardando..." : "Guardar Cambios"}
-          </Button>
-        </form>
+            <Button 
+              type="submit" 
+              disabled={form.formState.isSubmitting} 
+              className="bg-primary hover:bg-primary/90"
+            >
+              {form.formState.isSubmitting ? "Guardando..." : "Guardar Cambios"}
+            </Button>
+          </form>
+        </Form>
       </CardContent>
     </Card>
   );
