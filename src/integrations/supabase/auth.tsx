@@ -146,7 +146,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { error } = await supabase.auth.signOut();
     if (!error) {
       toast.success("Sesión cerrada");
-      navigate("/auth");
+      navigate("/");
     }
   };
 
