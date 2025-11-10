@@ -1,9 +1,12 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/integrations/supabase/auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, LogOut } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LogOut, Calendar, History, User } from "lucide-react";
+import { NextAppointment } from "@/components/paciente/NextAppointment";
+import { AppointmentHistory } from "@/components/paciente/AppointmentHistory";
+import { ProfileEditor } from "@/components/paciente/ProfileEditor";
 
 const PacienteDashboard = () => {
   const navigate = useNavigate();
@@ -40,42 +43,28 @@ const PacienteDashboard = () => {
 
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-foreground mb-2">Mis Citas</h2>
+          <h2 className="text-3xl font-bold text-foreground mb-2">Mi Panel</h2>
           <p className="text-muted-foreground">Gestiona tus citas y perfil</p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <Card className="bg-card border-border">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Próxima Cita
-              </CardTitle>
-              <Clock className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">No hay citas programadas</p>
-            </CardContent>
-          </Card>
+        <Tabs defaultValue="proxima" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+            <TabsTrigger value="proxima" className="gap-2">
+              <Calendar className="h-4 w-4" />
+              Próxima Cita
+            </TabsTrigger>
+            <TabsTrigger value="historial" className="gap-2">
+              <History className="h-4 w-4" />
+              Historial
+            </TabsTrigger>
+            <TabsTrigger value="perfil" className="gap-2">
+              <User className="h-4 w-4" />
+              Mi Perfil
+            </TabsTrigger>
+          </TabsList>
 
-          <Card className="bg-card border-border">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Historial
-              </CardTitle>
-              <Calendar className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">0</div>
-              <p className="text-xs text-muted-foreground">Citas completadas</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card className="bg-card border-border mb-6">
-          <CardHeader>
-            <CardTitle className="text-foreground">Reservar Nueva Cita</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <TabsContent value="proxima" className="space-y-6">
+            <NextAppointment />
             <Button 
               className="bg-primary hover:bg-primary/90"
               onClick={() => navigate("/servicios")}
@@ -83,22 +72,16 @@ const PacienteDashboard = () => {
               <Calendar className="mr-2 h-4 w-4" />
               Buscar Psicólogo
             </Button>
-          </CardContent>
-        </Card>
+          </TabsContent>
 
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-foreground">Funcionalidades Próximamente</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-muted-foreground">
-              <li>• Ver detalles de próxima cita</li>
-              <li>• Historial completo de citas</li>
-              <li>• Cancelar o reprogramar citas</li>
-              <li>• Actualizar datos personales</li>
-            </ul>
-          </CardContent>
-        </Card>
+          <TabsContent value="historial">
+            <AppointmentHistory />
+          </TabsContent>
+
+          <TabsContent value="perfil">
+            <ProfileEditor />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
