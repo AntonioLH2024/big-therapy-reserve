@@ -7,6 +7,7 @@ import { AuthProvider } from "@/integrations/supabase/auth";
 import Index from "./pages/Index";
 import Servicios from "./pages/Servicios";
 import Auth from "./pages/Auth";
+import CreateAdmin from "./pages/CreateAdmin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/servicios" element={<Servicios />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/create-admin" element={<CreateAdmin />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
