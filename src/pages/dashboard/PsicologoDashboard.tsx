@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/integrations/supabase/auth";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogOut, Calendar, Users, Clock, User } from "lucide-react";
+import { LogOut, Calendar, Users, Clock, User, CalendarDays } from "lucide-react";
 import { AppointmentsManager } from "@/components/psicologo/AppointmentsManager";
 import { PatientsManager } from "@/components/psicologo/PatientsManager";
 import { ScheduleConfig } from "@/components/psicologo/ScheduleConfig";
 import { ProfileEditor } from "@/components/psicologo/ProfileEditor";
+import { CalendarView } from "@/components/psicologo/CalendarView";
 
 const PsicologoDashboard = () => {
   const navigate = useNavigate();
@@ -54,6 +55,10 @@ const PsicologoDashboard = () => {
               <Calendar className="h-4 w-4 mr-2" />
               Citas
             </TabsTrigger>
+            <TabsTrigger value="calendario" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <CalendarDays className="h-4 w-4 mr-2" />
+              Calendario
+            </TabsTrigger>
             <TabsTrigger value="pacientes" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Users className="h-4 w-4 mr-2" />
               Pacientes
@@ -70,6 +75,10 @@ const PsicologoDashboard = () => {
 
           <TabsContent value="citas">
             <AppointmentsManager />
+          </TabsContent>
+
+          <TabsContent value="calendario">
+            <CalendarView />
           </TabsContent>
 
           <TabsContent value="pacientes">
