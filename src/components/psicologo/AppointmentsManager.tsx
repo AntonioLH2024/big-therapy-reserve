@@ -8,15 +8,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
-import { CalendarIcon, Plus, Pencil, Trash2 } from "lucide-react";
+import { CalendarIcon, Plus, Pencil, Trash2, Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const appointmentSchema = z.object({
@@ -192,22 +192,59 @@ export const AppointmentsManager = () => {
                   control={form.control}
                   name="paciente_id"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="flex flex-col">
                       <FormLabel className="text-foreground">Paciente</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="bg-background border-border text-foreground">
-                            <SelectValue placeholder="Selecciona un paciente" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent className="bg-card border-border">
-                          {patients.map((patient) => (
-                            <SelectItem key={patient.id} value={patient.id}>
-                              {patient.nombre} {patient.apellidos}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className={cn(
+                                "w-full justify-between bg-background border-border text-foreground",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value
+                                ? patients.find((patient) => patient.id === field.value)
+                                    ? `${patients.find((patient) => patient.id === field.value)?.nombre} ${patients.find((patient) => patient.id === field.value)?.apellidos}`
+                                    : "Selecciona un paciente"
+                                : "Selecciona un paciente"}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0 bg-card border-border" align="start">
+                          <Command className="bg-card">
+                            <CommandInput placeholder="Buscar paciente..." className="h-9 bg-background text-foreground" />
+                            <CommandList>
+                              <CommandEmpty className="text-muted-foreground py-6 text-center text-sm">
+                                No se encontraron pacientes.
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {patients.map((patient) => (
+                                  <CommandItem
+                                    key={patient.id}
+                                    value={`${patient.nombre} ${patient.apellidos}`}
+                                    onSelect={() => {
+                                      form.setValue("paciente_id", patient.id);
+                                    }}
+                                    className="text-foreground hover:bg-accent cursor-pointer"
+                                  >
+                                    {patient.nombre} {patient.apellidos}
+                                    <Check
+                                      className={cn(
+                                        "ml-auto h-4 w-4",
+                                        patient.id === field.value ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                       <FormMessage />
                     </FormItem>
                   )}
