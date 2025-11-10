@@ -140,8 +140,11 @@ export const CalendarView = () => {
 
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date);
-    if (date) {
-      setNewAppointmentDate(date);
+  };
+
+  const handleNewAppointment = () => {
+    if (selectedDate) {
+      setNewAppointmentDate(selectedDate);
       setIsDialogOpen(true);
       form.reset({
         paciente_id: "",
@@ -200,7 +203,7 @@ export const CalendarView = () => {
           <CardHeader>
             <CardTitle className="text-foreground">Calendario de Citas</CardTitle>
             <p className="text-sm text-muted-foreground mt-2">
-              Haz clic en una fecha para crear una nueva cita
+              Selecciona una fecha para ver las citas programadas
             </p>
           </CardHeader>
           <CardContent className="flex justify-center">
@@ -223,23 +226,29 @@ export const CalendarView = () => {
 
         <Card className="bg-card border-border">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <CardTitle className="text-foreground">
                 Citas del {selectedDate ? format(selectedDate, "d 'de' MMMM", { locale: es }) : ""}
               </CardTitle>
               <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[140px] bg-background border-border">
-                    <SelectValue placeholder="Filtrar" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="todas">Todas</SelectItem>
-                    <SelectItem value="programada">Programadas</SelectItem>
-                    <SelectItem value="completada">Completadas</SelectItem>
-                    <SelectItem value="cancelada">Canceladas</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[140px] bg-background border-border">
+                      <SelectValue placeholder="Filtrar" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      <SelectItem value="todas">Todas</SelectItem>
+                      <SelectItem value="programada">Programadas</SelectItem>
+                      <SelectItem value="completada">Completadas</SelectItem>
+                      <SelectItem value="cancelada">Canceladas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={handleNewAppointment} size="sm">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Añadir Cita
+                </Button>
               </div>
             </div>
           </CardHeader>
