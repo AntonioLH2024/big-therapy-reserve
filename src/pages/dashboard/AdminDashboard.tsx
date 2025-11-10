@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Users, Calendar, UserCog, LogOut, BarChart3 } from "lucide-react";
 import { PsychologistsManager } from "@/components/admin/PsychologistsManager";
 import { PatientsManager } from "@/components/admin/PatientsManager";
+import { AppointmentsManager } from "@/components/admin/AppointmentsManager";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -155,14 +156,7 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="appointments">
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="text-foreground">Gestión de Citas</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Próximamente...</p>
-              </CardContent>
-            </Card>
+            <AppointmentsManager />
           </TabsContent>
 
           <TabsContent value="stats">
