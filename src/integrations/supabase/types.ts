@@ -14,16 +14,141 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      citas: {
+        Row: {
+          created_at: string | null
+          estado: string | null
+          fecha_hora: string
+          id: string
+          notas: string | null
+          paciente_id: string
+          psicologo_id: string
+          servicio: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          estado?: string | null
+          fecha_hora: string
+          id?: string
+          notas?: string | null
+          paciente_id: string
+          psicologo_id: string
+          servicio: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          estado?: string | null
+          fecha_hora?: string
+          id?: string
+          notas?: string | null
+          paciente_id?: string
+          psicologo_id?: string
+          servicio?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "citas_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "citas_psicologo_id_fkey"
+            columns: ["psicologo_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          apellidos: string
+          created_at: string | null
+          id: string
+          nombre: string
+          role: Database["public"]["Enums"]["app_role"]
+          telefono: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          apellidos: string
+          created_at?: string | null
+          id: string
+          nombre: string
+          role?: Database["public"]["Enums"]["app_role"]
+          telefono?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          apellidos?: string
+          created_at?: string | null
+          id?: string
+          nombre?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          telefono?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      psicologo_detalles: {
+        Row: {
+          biografia: string | null
+          created_at: string | null
+          especialidad: string[] | null
+          foto_url: string | null
+          id: string
+          servicios: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          biografia?: string | null
+          created_at?: string | null
+          especialidad?: string[] | null
+          foto_url?: string | null
+          id: string
+          servicios?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          biografia?: string | null
+          created_at?: string | null
+          especialidad?: string[] | null
+          foto_url?: string | null
+          id?: string
+          servicios?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "psicologo_detalles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_owner_or_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "psicologo" | "paciente"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +275,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "psicologo", "paciente"],
+    },
   },
 } as const
