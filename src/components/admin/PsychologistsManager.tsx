@@ -65,7 +65,7 @@ export const PsychologistsManager = () => {
       .from("profiles")
       .select(`
         *,
-        psicologo_detalles!inner(especialidad, biografia)
+        psicologo_detalles(especialidad, biografia)
       `)
       .eq("role", "psicologo")
       .order("created_at", { ascending: false });
