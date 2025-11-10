@@ -1,9 +1,13 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/integrations/supabase/auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Users, LogOut } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LogOut, Calendar, Users, Clock, User } from "lucide-react";
+import { AppointmentsManager } from "@/components/psicologo/AppointmentsManager";
+import { PatientsManager } from "@/components/psicologo/PatientsManager";
+import { ScheduleConfig } from "@/components/psicologo/ScheduleConfig";
+import { ProfileEditor } from "@/components/psicologo/ProfileEditor";
 
 const PsicologoDashboard = () => {
   const navigate = useNavigate();
@@ -41,48 +45,45 @@ const PsicologoDashboard = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-foreground mb-2">Mi Panel</h2>
-          <p className="text-muted-foreground">Gestiona tus citas y pacientes</p>
+          <p className="text-muted-foreground">Gestiona tus citas, pacientes y perfil profesional</p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <Card className="bg-card border-border">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Citas Hoy
-              </CardTitle>
-              <Calendar className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">0</div>
-            </CardContent>
-          </Card>
+        <Tabs defaultValue="citas" className="space-y-6">
+          <TabsList className="bg-card border-border">
+            <TabsTrigger value="citas" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Calendar className="h-4 w-4 mr-2" />
+              Citas
+            </TabsTrigger>
+            <TabsTrigger value="pacientes" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Users className="h-4 w-4 mr-2" />
+              Pacientes
+            </TabsTrigger>
+            <TabsTrigger value="horarios" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Clock className="h-4 w-4 mr-2" />
+              Horarios
+            </TabsTrigger>
+            <TabsTrigger value="perfil" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <User className="h-4 w-4 mr-2" />
+              Perfil
+            </TabsTrigger>
+          </TabsList>
 
-          <Card className="bg-card border-border">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Mis Pacientes
-              </CardTitle>
-              <Users className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">0</div>
-            </CardContent>
-          </Card>
-        </div>
+          <TabsContent value="citas">
+            <AppointmentsManager />
+          </TabsContent>
 
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-foreground">Funcionalidades Próximamente</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-muted-foreground">
-              <li>• Gestión de citas del día (CRUD)</li>
-              <li>• Listado de todos tus pacientes</li>
-              <li>• Configuración de calendario y horarios</li>
-              <li>• Actualización de perfil profesional</li>
-            </ul>
-          </CardContent>
-        </Card>
+          <TabsContent value="pacientes">
+            <PatientsManager />
+          </TabsContent>
+
+          <TabsContent value="horarios">
+            <ScheduleConfig />
+          </TabsContent>
+
+          <TabsContent value="perfil">
+            <ProfileEditor />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
