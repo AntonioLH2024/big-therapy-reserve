@@ -1,15 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/integrations/supabase/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
 import { Calendar as CalendarIcon, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { z } from "zod";
+
+const appointmentSchema = z.object({
+  servicio: z.string().trim().min(1, "Servicio requerido").max(200, "Servicio muy largo"),
+  notas: z.string().max(500, "Notas muy largas").optional().or(z.literal("")),
+});
 
 interface Psychologist {
   id: string;
@@ -24,6 +32,19 @@ export const AppointmentScheduler = () => {
   const [selectedPsychologist, setSelectedPsychologist] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState<string>("");
+  const [servicio, setServicio] = useState<string>("");
+  const [notas, setNotas] = useState<string>("");
+
+  // Load selected service from localStorage when dialog opens
+  useEffect(() => {
+    if (open) {
+      const savedService = localStorage.getItem("selectedService");
+      if (savedService) {
+        setServicio(savedService);
+        localStorage.removeItem("selectedService");
+      }
+    }
+  }, [open]);
 
   // Fetch psychologists
   const { data: psychologists, isLoading: loadingPsychologists } = useQuery({
@@ -83,6 +104,12 @@ export const AppointmentScheduler = () => {
         throw new Error("Faltan datos requeridos");
       }
 
+      // Validate form data
+      const validation = appointmentSchema.safeParse({ servicio, notas });
+      if (!validation.success) {
+        throw new Error(validation.error.errors[0].message);
+      }
+
       const [hours, minutes] = selectedTime.split(":").map(Number);
       const appointmentDateTime = new Date(selectedDate);
       appointmentDateTime.setHours(hours, minutes, 0, 0);
@@ -91,7 +118,8 @@ export const AppointmentScheduler = () => {
         paciente_id: user.id,
         psicologo_id: selectedPsychologist,
         fecha_hora: appointmentDateTime.toISOString(),
-        servicio: "Consulta",
+        servicio: validation.data.servicio,
+        notas: validation.data.notas || null,
         estado: "programada",
       });
 
@@ -105,16 +133,21 @@ export const AppointmentScheduler = () => {
       setSelectedPsychologist("");
       setSelectedDate(undefined);
       setSelectedTime("");
+      setServicio("");
+      setNotas("");
     },
-    onError: (error) => {
-      toast.error("Error al programar la cita");
-      console.error(error);
+    onError: (error: Error) => {
+      toast.error(error.message || "Error al programar la cita");
     },
   });
 
   const handleSubmit = () => {
     if (!selectedPsychologist || !selectedDate || !selectedTime) {
       toast.error("Por favor completa todos los campos");
+      return;
+    }
+    if (!servicio.trim()) {
+      toast.error("Por favor especifica el tipo de servicio");
       return;
     }
     createAppointment.mutate();
@@ -178,6 +211,37 @@ export const AppointmentScheduler = () => {
             </div>
           )}
 
+          {/* Service Type */}
+          {selectedPsychologist && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Tipo de Servicio
+              </label>
+              <Input
+                value={servicio}
+                onChange={(e) => setServicio(e.target.value)}
+                placeholder="Ej: Consulta Individual, Terapia de Parejas"
+                className="bg-background"
+              />
+            </div>
+          )}
+
+          {/* Notes (optional) */}
+          {selectedPsychologist && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Notas (opcional)
+              </label>
+              <Textarea
+                value={notas}
+                onChange={(e) => setNotas(e.target.value)}
+                placeholder="Información adicional sobre la cita..."
+                className="bg-background"
+                rows={3}
+              />
+            </div>
+          )}
+
           {/* Time Slots */}
           {selectedPsychologist && selectedDate && (
             <div className="space-y-2">
@@ -206,7 +270,7 @@ export const AppointmentScheduler = () => {
           )}
 
           {/* Submit Button */}
-          {selectedPsychologist && selectedDate && selectedTime && (
+          {selectedPsychologist && selectedDate && selectedTime && servicio && (
             <div className="flex flex-col gap-2 pt-4 border-t border-border">
               <div className="text-sm text-muted-foreground">
                 <p>
@@ -219,6 +283,9 @@ export const AppointmentScheduler = () => {
                 </p>
                 <p>
                   <strong>Hora:</strong> {selectedTime}
+                </p>
+                <p>
+                  <strong>Servicio:</strong> {servicio}
                 </p>
               </div>
               <Button

@@ -2,9 +2,38 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Brain, Users, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/integrations/supabase/auth";
+import { toast } from "sonner";
+import { useEffect } from "react";
 
 const Servicios = () => {
   const navigate = useNavigate();
+  const { user, userRole } = useAuth();
+
+  const handleReservarCita = (serviceTitle: string) => {
+    // Store selected service for later use
+    localStorage.setItem("selectedService", serviceTitle);
+
+    if (!user) {
+      // User not authenticated, redirect to auth
+      toast.info("Inicia sesión para reservar una cita");
+      navigate("/auth");
+      return;
+    }
+
+    if (userRole === "paciente") {
+      // Patient user, redirect to their dashboard
+      toast.success(`Reservando cita para: ${serviceTitle}`);
+      navigate("/dashboard/paciente");
+    } else if (userRole === "psicologo") {
+      toast.error("Los psicólogos no pueden reservar citas como pacientes");
+    } else if (userRole === "admin") {
+      toast.error("Los administradores deben crear citas desde el panel de administración");
+    } else {
+      // Unknown role, redirect to auth
+      navigate("/auth");
+    }
+  };
 
   const services = [
     {
@@ -75,9 +104,19 @@ const Servicios = () => {
             >
               Servicios
             </a>
-            <Button variant="outline" onClick={() => navigate("/auth")}>
-              Iniciar Sesión
-            </Button>
+            {user ? (
+              <Button onClick={() => navigate(
+                userRole === "admin" ? "/dashboard/admin" :
+                userRole === "psicologo" ? "/dashboard/psicologo" :
+                userRole === "paciente" ? "/dashboard/paciente" : "/"
+              )}>
+                Mi Dashboard
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={() => navigate("/auth")}>
+                Iniciar Sesión
+              </Button>
+            )}
           </nav>
         </div>
       </header>
@@ -154,7 +193,7 @@ const Servicios = () => {
                       <Button
                         className="w-full bg-primary hover:bg-primary/90"
                         size="lg"
-                        onClick={() => navigate("/auth")}
+                        onClick={() => handleReservarCita(service.title)}
                       >
                         Reservar Cita
                       </Button>
