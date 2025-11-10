@@ -39,6 +39,12 @@ export const AppointmentsManager = () => {
 
   const form = useForm<AppointmentFormData>({
     resolver: zodResolver(appointmentSchema),
+    defaultValues: {
+      paciente_id: "",
+      hora: "",
+      servicio: "",
+      notas: "",
+    },
   });
 
   useEffect(() => {
@@ -98,12 +104,13 @@ export const AppointmentsManager = () => {
           paciente_id: data.paciente_id,
           fecha_hora: dateTime.toISOString(),
           servicio: data.servicio,
-          notas: data.notas,
+          notas: data.notas || null,
         })
         .eq("id", editingAppointment.id);
 
       if (error) {
-        toast.error("Error al actualizar cita");
+        console.error("Error updating appointment:", error);
+        toast.error(`Error al actualizar cita: ${error.message}`);
       } else {
         toast.success("Cita actualizada");
         fetchAppointments();
@@ -115,12 +122,13 @@ export const AppointmentsManager = () => {
         paciente_id: data.paciente_id,
         fecha_hora: dateTime.toISOString(),
         servicio: data.servicio,
-        notas: data.notas,
+        notas: data.notas || null,
         estado: "programada",
       });
 
       if (error) {
-        toast.error("Error al crear cita");
+        console.error("Error creating appointment:", error);
+        toast.error(`Error al crear cita: ${error.message}`);
       } else {
         toast.success("Cita creada");
         fetchAppointments();
@@ -158,7 +166,6 @@ export const AppointmentsManager = () => {
     setEditingAppointment(null);
     form.reset({
       paciente_id: "",
-      fecha_hora: undefined,
       hora: "",
       servicio: "",
       notas: "",
