@@ -65,6 +65,33 @@ export type Database = {
           },
         ]
       }
+      login_attempts: {
+        Row: {
+          attempt_time: string
+          created_at: string
+          email: string
+          id: string
+          ip_address: string | null
+          success: boolean
+        }
+        Insert: {
+          attempt_time?: string
+          created_at?: string
+          email: string
+          id?: string
+          ip_address?: string | null
+          success?: boolean
+        }
+        Update: {
+          attempt_time?: string
+          created_at?: string
+          email?: string
+          id?: string
+          ip_address?: string | null
+          success?: boolean
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           apellidos: string
@@ -159,6 +186,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_unblock_time: { Args: { user_email: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -174,6 +202,11 @@ export type Database = {
         Returns: boolean
       }
       is_owner_or_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_user_blocked: { Args: { user_email: string }; Returns: boolean }
+      record_login_attempt: {
+        Args: { is_success: boolean; user_email: string; user_ip?: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "psicologo" | "paciente"

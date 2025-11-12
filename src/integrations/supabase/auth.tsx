@@ -106,40 +106,96 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    
-    if (error) {
-      toast.error("Credenciales incorrectas");
-      return { error };
-    }
-    
-    // Get user role and redirect accordingly
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
+    try {
+      // Check if user is blocked
+      const { data: isBlocked, error: blockCheckError } = await supabase
+        .rpc('is_user_blocked', { user_email: email });
       
-      toast.success("Sesión iniciada");
-      
-      // Redirect based on role
-      if (profile?.role === "admin") {
-        navigate("/dashboard/admin");
-      } else if (profile?.role === "psicologo") {
-        navigate("/dashboard/psicologo");
-      } else if (profile?.role === "paciente") {
-        navigate("/dashboard/paciente");
-      } else {
-        navigate("/");
+      if (blockCheckError) {
+        console.error('Error checking block status:', blockCheckError);
       }
+      
+      if (isBlocked) {
+        const { data: unblockTime } = await supabase
+          .rpc('get_unblock_time', { user_email: email });
+        
+        const minutesLeft = unblockTime 
+          ? Math.ceil((new Date(unblockTime).getTime() - Date.now()) / 60000)
+          : 15;
+        
+        toast.error(`Cuenta bloqueada temporalmente. Intenta de nuevo en ${minutesLeft} minutos.`);
+        return { error: new Error('Account temporarily blocked') };
+      }
+      
+      // Attempt sign in
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) {
+        // Record failed attempt
+        await supabase.rpc('record_login_attempt', {
+          user_email: email,
+          is_success: false,
+          user_ip: null
+        });
+        
+        // Check remaining attempts
+        const { data: failedAttempts } = await supabase
+          .from('login_attempts')
+          .select('*', { count: 'exact' })
+          .eq('email', email)
+          .eq('success', false)
+          .gte('attempt_time', new Date(Date.now() - 15 * 60 * 1000).toISOString());
+        
+        const attemptsLeft = 5 - (failedAttempts || []).length;
+        
+        if (attemptsLeft > 0 && attemptsLeft <= 3) {
+          toast.error(`Credenciales incorrectas. Te quedan ${attemptsLeft} intentos antes del bloqueo temporal.`);
+        } else {
+          toast.error("Credenciales incorrectas");
+        }
+        
+        return { error };
+      }
+      
+      // Record successful attempt
+      await supabase.rpc('record_login_attempt', {
+        user_email: email,
+        is_success: true,
+        user_ip: null
+      });
+      
+      // Get user role and redirect accordingly
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+        
+        toast.success("Sesión iniciada");
+        
+        // Redirect based on role
+        if (profile?.role === "admin") {
+          navigate("/dashboard/admin");
+        } else if (profile?.role === "psicologo") {
+          navigate("/dashboard/psicologo");
+        } else if (profile?.role === "paciente") {
+          navigate("/dashboard/paciente");
+        } else {
+          navigate("/");
+        }
+      }
+      
+      return { error };
+    } catch (err) {
+      console.error('Error during sign in:', err);
+      toast.error("Error al iniciar sesión");
+      return { error: err };
     }
-    
-    return { error };
   };
 
   const signOut = async () => {
