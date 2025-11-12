@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/integrations/supabase/auth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import heroImage from "@/assets/hero-therapy.jpg";
 const Index = () => {
   const navigate = useNavigate();
@@ -53,6 +54,7 @@ const Index = () => {
             <a href="#contacto" className="text-foreground hover:text-primary transition-colors">
               Contacto
             </a>
+            <ThemeToggle />
             {user ? <>
                 <Button variant="ghost" onClick={() => {
               if (userRole === "admin") navigate("/dashboard/admin");else if (userRole === "psicologo") navigate("/dashboard/psicologo");else if (userRole === "paciente") navigate("/dashboard/paciente");

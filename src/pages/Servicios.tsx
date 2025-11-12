@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Brain, Users, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/integrations/supabase/auth";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { toast } from "sonner";
 import { useEffect } from "react";
 
@@ -104,6 +105,7 @@ const Servicios = () => {
             >
               Servicios
             </a>
+            <ThemeToggle />
             {user ? (
               <Button onClick={() => navigate(
                 userRole === "admin" ? "/dashboard/admin" :
