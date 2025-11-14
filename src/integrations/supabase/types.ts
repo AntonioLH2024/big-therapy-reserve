@@ -160,6 +160,36 @@ export type Database = {
           },
         ]
       }
+      psicologo_horarios: {
+        Row: {
+          created_at: string
+          disponible: boolean
+          fecha: string
+          hora: string
+          id: string
+          psicologo_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          disponible?: boolean
+          fecha: string
+          hora: string
+          id?: string
+          psicologo_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          disponible?: boolean
+          fecha?: string
+          hora?: string
+          id?: string
+          psicologo_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
