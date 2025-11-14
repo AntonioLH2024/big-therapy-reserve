@@ -28,9 +28,10 @@ interface Psychologist {
 interface AppointmentSchedulerProps {
   embedded?: boolean;
   onAppointmentScheduled?: () => void;
+  appointmentToChange?: string; // ID of appointment being replaced
 }
 
-export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled }: AppointmentSchedulerProps = {}) => {
+export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled, appointmentToChange }: AppointmentSchedulerProps = {}) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -147,6 +148,19 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled 
 
       if (conflictCheck) {
         throw new Error("Este horario ya no está disponible. Por favor selecciona otro horario.");
+      }
+
+      // If changing an appointment, cancel the old one first
+      if (appointmentToChange) {
+        const { error: cancelError } = await supabase
+          .from("citas")
+          .update({ estado: "cancelada" })
+          .eq("id", appointmentToChange);
+
+        if (cancelError) {
+          console.error("Error cancelling old appointment:", cancelError);
+          throw new Error("Error al cancelar la cita anterior");
+        }
       }
 
       const { data, error } = await supabase.from("citas").insert({

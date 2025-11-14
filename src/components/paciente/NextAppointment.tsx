@@ -283,7 +283,7 @@ export const NextAppointment = () => {
           <DialogHeader>
             <DialogTitle>Cambiar Cita</DialogTitle>
           </DialogHeader>
-          <AppointmentScheduler embedded onAppointmentScheduled={handleAppointmentScheduled} />
+          <AppointmentScheduler embedded onAppointmentScheduled={handleAppointmentScheduled} appointmentToChange={appointment?.id} />
         </DialogContent>
       </Dialog>
     </Card>
