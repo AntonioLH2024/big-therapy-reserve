@@ -110,25 +110,26 @@ export const AppointmentScheduler = () => {
         throw new Error(validation.error.errors[0].message);
       }
 
-      const [hours, minutes] = selectedTime.split(":").map(Number);
-      const appointmentDateTime = new Date(selectedDate);
-      appointmentDateTime.setHours(hours, minutes, 0, 0);
+      const [hour] = selectedTime.split(":");
+      const appointmentDate = new Date(selectedDate);
+      appointmentDate.setHours(parseInt(hour), 0, 0, 0);
 
-      const { error } = await supabase.from("citas").insert({
+      const { data, error } = await supabase.from("citas").insert({
         paciente_id: user.id,
         psicologo_id: selectedPsychologist,
-        fecha_hora: appointmentDateTime.toISOString(),
+        fecha_hora: appointmentDate.toISOString(),
         servicio: validation.data.servicio,
         notas: validation.data.notas || null,
         estado: "programada",
       });
 
       if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       toast.success("Cita programada exitosamente");
-      queryClient.invalidateQueries({ queryKey: ["next-appointment"] });
-      queryClient.invalidateQueries({ queryKey: ["appointments-history"] });
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["psychologist-appointments"] });
       setOpen(false);
       setSelectedPsychologist("");
       setSelectedDate(undefined);
@@ -142,10 +143,6 @@ export const AppointmentScheduler = () => {
   });
 
   const handleSubmit = () => {
-    if (!selectedPsychologist || !selectedDate || !selectedTime) {
-      toast.error("Por favor completa todos los campos");
-      return;
-    }
     if (!servicio.trim()) {
       toast.error("Por favor especifica el tipo de servicio");
       return;
@@ -161,7 +158,7 @@ export const AppointmentScheduler = () => {
           Buscar Psicólogo
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Programar Nueva Cita</DialogTitle>
         </DialogHeader>
@@ -192,25 +189,6 @@ export const AppointmentScheduler = () => {
             </Select>
           </div>
 
-          {/* Calendar */}
-          {selectedPsychologist && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                Seleccionar Fecha
-              </label>
-              <div className="flex justify-center border border-border rounded-md p-4">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                  locale={es}
-                  className="rounded-md"
-                />
-              </div>
-            </div>
-          )}
-
           {/* Service Type */}
           {selectedPsychologist && (
             <div className="space-y-2">
@@ -223,6 +201,55 @@ export const AppointmentScheduler = () => {
                 placeholder="Ej: Consulta Individual, Terapia de Parejas"
                 className="bg-background"
               />
+            </div>
+          )}
+
+          {/* Calendar and Time Slots */}
+          {selectedPsychologist && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Seleccionar Fecha y Hora
+              </label>
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Calendar */}
+                <div className="flex justify-center border border-border rounded-md p-4">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                    locale={es}
+                    className="rounded-md pointer-events-auto"
+                  />
+                </div>
+
+                {/* Time Slots */}
+                {selectedDate && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">
+                      Horas Disponibles
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto pr-2">
+                      {availableSlots().map((slot) => (
+                        <Button
+                          key={slot}
+                          variant={selectedTime === slot ? "default" : "outline"}
+                          onClick={() => setSelectedTime(slot)}
+                          className="w-full"
+                        >
+                          <Clock className="mr-2 h-4 w-4" />
+                          {slot}
+                        </Button>
+                      ))}
+                    </div>
+                    {availableSlots().length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-8">
+                        No hay horarios disponibles para esta fecha
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -242,34 +269,7 @@ export const AppointmentScheduler = () => {
             </div>
           )}
 
-          {/* Time Slots */}
-          {selectedPsychologist && selectedDate && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                Seleccionar Hora
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {availableSlots().map((slot) => (
-                  <Button
-                    key={slot}
-                    variant={selectedTime === slot ? "default" : "outline"}
-                    onClick={() => setSelectedTime(slot)}
-                    className="w-full"
-                  >
-                    <Clock className="mr-2 h-4 w-4" />
-                    {slot}
-                  </Button>
-                ))}
-                {availableSlots().length === 0 && (
-                  <p className="col-span-3 text-center text-muted-foreground py-4">
-                    No hay horarios disponibles para esta fecha
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Submit Button */}
+          {/* Confirmation Summary */}
           {selectedPsychologist && selectedDate && selectedTime && servicio && (
             <div className="flex flex-col gap-2 pt-4 border-t border-border">
               <div className="text-sm text-muted-foreground">
