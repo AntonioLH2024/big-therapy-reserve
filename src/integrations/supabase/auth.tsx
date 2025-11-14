@@ -199,10 +199,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (!error) {
+    try {
+      // Clear local state first
+      setSession(null);
+      setUser(null);
+      setUserRole(null);
+      
+      // Attempt to sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      // Session not found is normal if session expired
+      if (error && !error.message.includes("session_not_found")) {
+        console.error("Sign out error:", error);
+      }
+      
       toast.success("Sesión cerrada");
-      navigate("/");
+      navigate("/auth");
+    } catch (error) {
+      console.error("Unexpected sign out error:", error);
+      // Still navigate to auth even on error
+      navigate("/auth");
     }
   };
 
