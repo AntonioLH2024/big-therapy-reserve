@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
-import { Calendar as CalendarIcon, Clock } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Check } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { z } from "zod";
@@ -239,8 +239,11 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled 
     <div className="space-y-6">
       {/* Select Psychologist */}
       <div className="space-y-2">
-        <label className="text-sm font-medium text-foreground">
+        <label className="text-sm font-medium text-foreground flex items-center gap-2">
           Seleccionar Psicólogo
+          {selectedPsychologist && (
+            <Check className="h-4 w-4 text-green-500" />
+          )}
         </label>
         <Select value={selectedPsychologist} onValueChange={setSelectedPsychologist}>
           <SelectTrigger>
@@ -265,8 +268,11 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled 
       {/* Service Type */}
       {selectedPsychologist && (
         <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">
+          <label className="text-sm font-medium text-foreground flex items-center gap-2">
             Tipo de Servicio
+            {servicio && (
+              <Check className="h-4 w-4 text-green-500" />
+            )}
           </label>
           <Input
             value={servicio}
@@ -280,8 +286,11 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled 
       {/* Calendar and Time Slots */}
       {selectedPsychologist && (
         <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">
+          <label className="text-sm font-medium text-foreground flex items-center gap-2">
             Seleccionar Fecha y Hora
+            {selectedDate && selectedTime && (
+              <Check className="h-4 w-4 text-green-500" />
+            )}
           </label>
           <div className="grid md:grid-cols-2 gap-6">
             {/* Calendar */}
@@ -329,8 +338,11 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled 
       {/* Notes (optional) */}
       {selectedPsychologist && (
         <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">
+          <label className="text-sm font-medium text-foreground flex items-center gap-2">
             Notas (opcional)
+            {notas && (
+              <Check className="h-4 w-4 text-green-500" />
+            )}
           </label>
           <Textarea
             value={notas}
