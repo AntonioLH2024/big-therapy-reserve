@@ -342,9 +342,9 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled 
         </div>
       )}
 
-      {/* Confirmation Summary */}
-      {selectedPsychologist && selectedDate && selectedTime && servicio && (
-        <div className="flex flex-col gap-4 pt-4 border-t border-border">
+      {/* Confirmation Summary and Button - Always Visible */}
+      <div className="flex flex-col gap-4 pt-4 border-t border-border mt-6">
+        {selectedPsychologist && selectedDate && selectedTime && servicio && (
           <div className="bg-muted/50 rounded-lg p-4 space-y-2">
             <h3 className="font-semibold text-foreground mb-3">Resumen de la Cita</h3>
             <div className="text-sm space-y-1">
@@ -369,16 +369,24 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled 
               </p>
             </div>
           </div>
-          <Button
-            onClick={handleSubmit}
-            disabled={createAppointment.isPending}
-            size="lg"
-            className="w-full"
-          >
-            {createAppointment.isPending ? "Programando..." : "Aceptar y Confirmar Cita"}
-          </Button>
-        </div>
-      )}
+        )}
+        
+        {/* Confirmation Button - Always Visible */}
+        <Button
+          onClick={handleSubmit}
+          disabled={!selectedPsychologist || !selectedDate || !selectedTime || !servicio || createAppointment.isPending}
+          size="lg"
+          className="w-full"
+        >
+          {createAppointment.isPending ? "Programando..." : "Aceptar y Confirmar Cita"}
+        </Button>
+        
+        {(!selectedPsychologist || !selectedDate || !selectedTime || !servicio) && (
+          <p className="text-sm text-muted-foreground text-center">
+            Completa todos los campos para confirmar la cita
+          </p>
+        )}
+      </div>
     </div>
   );
 
