@@ -1,0 +1,191 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { Resend } from "https://esm.sh/resend@4.0.0";
+
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+interface AppointmentNotificationRequest {
+  appointmentId: string;
+  type: "scheduled" | "changed" | "cancelled";
+  pacienteEmail: string;
+  psicologoEmail: string;
+  appointmentDetails: {
+    fecha: string;
+    hora: string;
+    servicio: string;
+    pacienteNombre: string;
+    psicologoNombre: string;
+  };
+}
+
+const handler = async (req: Request): Promise<Response> => {
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { 
+      appointmentId, 
+      type, 
+      pacienteEmail, 
+      psicologoEmail, 
+      appointmentDetails 
+    }: AppointmentNotificationRequest = await req.json();
+
+    console.log(`Processing ${type} notification for appointment ${appointmentId}`);
+
+    const { fecha, hora, servicio, pacienteNombre, psicologoNombre } = appointmentDetails;
+
+    // Email content based on notification type
+    let subjectPaciente = "";
+    let htmlPaciente = "";
+    let subjectPsicologo = "";
+    let htmlPsicologo = "";
+
+    switch (type) {
+      case "scheduled":
+        subjectPaciente = "Cita Programada - Big Citas";
+        htmlPaciente = `
+          <h1>¡Tu cita ha sido programada!</h1>
+          <p>Hola ${pacienteNombre},</p>
+          <p>Tu cita ha sido programada exitosamente con los siguientes detalles:</p>
+          <ul>
+            <li><strong>Psicólogo:</strong> ${psicologoNombre}</li>
+            <li><strong>Fecha:</strong> ${fecha}</li>
+            <li><strong>Hora:</strong> ${hora}</li>
+            <li><strong>Servicio:</strong> ${servicio}</li>
+          </ul>
+          <p>Te esperamos en tu cita.</p>
+          <p>Saludos,<br>Equipo Big Citas</p>
+        `;
+        
+        subjectPsicologo = "Nueva Cita Programada - Big Citas";
+        htmlPsicologo = `
+          <h1>Nueva cita programada</h1>
+          <p>Hola Dr. ${psicologoNombre},</p>
+          <p>Se ha programado una nueva cita:</p>
+          <ul>
+            <li><strong>Paciente:</strong> ${pacienteNombre}</li>
+            <li><strong>Fecha:</strong> ${fecha}</li>
+            <li><strong>Hora:</strong> ${hora}</li>
+            <li><strong>Servicio:</strong> ${servicio}</li>
+          </ul>
+          <p>Saludos,<br>Equipo Big Citas</p>
+        `;
+        break;
+
+      case "changed":
+        subjectPaciente = "Cambio de Cita - Big Citas";
+        htmlPaciente = `
+          <h1>Tu cita ha sido modificada</h1>
+          <p>Hola ${pacienteNombre},</p>
+          <p>Tu cita ha sido cambiada. Los nuevos detalles son:</p>
+          <ul>
+            <li><strong>Psicólogo:</strong> ${psicologoNombre}</li>
+            <li><strong>Nueva Fecha:</strong> ${fecha}</li>
+            <li><strong>Nueva Hora:</strong> ${hora}</li>
+            <li><strong>Servicio:</strong> ${servicio}</li>
+          </ul>
+          <p>Te esperamos en tu nueva cita.</p>
+          <p>Saludos,<br>Equipo Big Citas</p>
+        `;
+        
+        subjectPsicologo = "Cambio de Cita - Big Citas";
+        htmlPsicologo = `
+          <h1>Cita modificada</h1>
+          <p>Hola Dr. ${psicologoNombre},</p>
+          <p>Una cita ha sido modificada:</p>
+          <ul>
+            <li><strong>Paciente:</strong> ${pacienteNombre}</li>
+            <li><strong>Nueva Fecha:</strong> ${fecha}</li>
+            <li><strong>Nueva Hora:</strong> ${hora}</li>
+            <li><strong>Servicio:</strong> ${servicio}</li>
+          </ul>
+          <p>Saludos,<br>Equipo Big Citas</p>
+        `;
+        break;
+
+      case "cancelled":
+        subjectPaciente = "Cita Cancelada - Big Citas";
+        htmlPaciente = `
+          <h1>Tu cita ha sido cancelada</h1>
+          <p>Hola ${pacienteNombre},</p>
+          <p>Tu cita con los siguientes detalles ha sido cancelada:</p>
+          <ul>
+            <li><strong>Psicólogo:</strong> ${psicologoNombre}</li>
+            <li><strong>Fecha:</strong> ${fecha}</li>
+            <li><strong>Hora:</strong> ${hora}</li>
+            <li><strong>Servicio:</strong> ${servicio}</li>
+          </ul>
+          <p>Si deseas programar una nueva cita, puedes hacerlo desde tu panel.</p>
+          <p>Saludos,<br>Equipo Big Citas</p>
+        `;
+        
+        subjectPsicologo = "Cita Cancelada - Big Citas";
+        htmlPsicologo = `
+          <h1>Cita cancelada</h1>
+          <p>Hola Dr. ${psicologoNombre},</p>
+          <p>Una cita ha sido cancelada:</p>
+          <ul>
+            <li><strong>Paciente:</strong> ${pacienteNombre}</li>
+            <li><strong>Fecha:</strong> ${fecha}</li>
+            <li><strong>Hora:</strong> ${hora}</li>
+            <li><strong>Servicio:</strong> ${servicio}</li>
+          </ul>
+          <p>Saludos,<br>Equipo Big Citas</p>
+        `;
+        break;
+    }
+
+    // Send email to patient
+    const pacienteEmailResponse = await resend.emails.send({
+      from: "Big Citas <onboarding@resend.dev>",
+      to: [pacienteEmail],
+      subject: subjectPaciente,
+      html: htmlPaciente,
+    });
+
+    console.log("Patient email sent:", pacienteEmailResponse);
+
+    // Send email to psychologist
+    const psicologoEmailResponse = await resend.emails.send({
+      from: "Big Citas <onboarding@resend.dev>",
+      to: [psicologoEmail],
+      subject: subjectPsicologo,
+      html: htmlPsicologo,
+    });
+
+    console.log("Psychologist email sent:", psicologoEmailResponse);
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        pacienteEmailId: pacienteEmailResponse.data?.id,
+        psicologoEmailId: psicologoEmailResponse.data?.id 
+      }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders,
+        },
+      }
+    );
+  } catch (error: any) {
+    console.error("Error in send-appointment-notification:", error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      }
+    );
+  }
+};
+
+serve(handler);
