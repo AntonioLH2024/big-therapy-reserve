@@ -310,29 +310,38 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled 
 
       {/* Confirmation Summary */}
       {selectedPsychologist && selectedDate && selectedTime && servicio && (
-        <div className="flex flex-col gap-2 pt-4 border-t border-border">
-          <div className="text-sm text-muted-foreground">
-            <p>
-              <strong>Psicólogo:</strong>{" "}
-              {psychologists?.find((p) => p.id === selectedPsychologist)?.nombre}{" "}
-              {psychologists?.find((p) => p.id === selectedPsychologist)?.apellidos}
-            </p>
-            <p>
-              <strong>Fecha:</strong> {format(selectedDate, "PPP", { locale: es })}
-            </p>
-            <p>
-              <strong>Hora:</strong> {selectedTime}
-            </p>
-            <p>
-              <strong>Servicio:</strong> {servicio}
-            </p>
+        <div className="flex flex-col gap-4 pt-4 border-t border-border">
+          <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+            <h3 className="font-semibold text-foreground mb-3">Resumen de la Cita</h3>
+            <div className="text-sm space-y-1">
+              <p className="flex justify-between">
+                <span className="text-muted-foreground">Psicólogo:</span>
+                <span className="font-medium text-foreground">
+                  {psychologists?.find((p) => p.id === selectedPsychologist)?.nombre}{" "}
+                  {psychologists?.find((p) => p.id === selectedPsychologist)?.apellidos}
+                </span>
+              </p>
+              <p className="flex justify-between">
+                <span className="text-muted-foreground">Fecha:</span>
+                <span className="font-medium text-foreground">{format(selectedDate, "PPP", { locale: es })}</span>
+              </p>
+              <p className="flex justify-between">
+                <span className="text-muted-foreground">Hora:</span>
+                <span className="font-medium text-foreground">{selectedTime}</span>
+              </p>
+              <p className="flex justify-between">
+                <span className="text-muted-foreground">Servicio:</span>
+                <span className="font-medium text-foreground">{servicio}</span>
+              </p>
+            </div>
           </div>
           <Button
             onClick={handleSubmit}
             disabled={createAppointment.isPending}
+            size="lg"
             className="w-full"
           >
-            {createAppointment.isPending ? "Programando..." : "Confirmar Cita"}
+            {createAppointment.isPending ? "Programando..." : "Aceptar y Confirmar Cita"}
           </Button>
         </div>
       )}
