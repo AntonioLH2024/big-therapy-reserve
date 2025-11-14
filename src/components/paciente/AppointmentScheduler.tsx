@@ -126,15 +126,55 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled 
         servicio: validation.data.servicio,
         notas: validation.data.notas || null,
         estado: "programada",
-      });
+      }).select(`
+        id,
+        fecha_hora,
+        servicio,
+        psicologo_id,
+        psicologo:profiles!psicologo_id (
+          nombre,
+          apellidos
+        )
+      `).single();
 
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
       toast.success("Cita programada exitosamente");
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["psychologist-appointments"] });
+      
+      // Send notification
+      if (data) {
+        try {
+          const { data: authData } = await supabase.auth.getUser();
+          const pacienteEmail = authData?.user?.email;
+
+          if (pacienteEmail) {
+            const appointmentDate = new Date(data.fecha_hora);
+            
+            await supabase.functions.invoke("send-appointment-notification", {
+              body: {
+                appointmentId: data.id,
+                type: "scheduled",
+                pacienteEmail,
+                psicologoEmail: "psicologo@example.com",
+                appointmentDetails: {
+                  fecha: format(appointmentDate, "EEEE, d 'de' MMMM yyyy", { locale: es }),
+                  hora: format(appointmentDate, "HH:mm", { locale: es }),
+                  servicio: data.servicio,
+                  pacienteNombre: authData?.user?.email?.split('@')[0] || "Paciente",
+                  psicologoNombre: `${data.psicologo.nombre} ${data.psicologo.apellidos}`,
+                },
+              },
+            });
+          }
+        } catch (error) {
+          console.error("Error sending notification:", error);
+        }
+      }
+      
       if (!embedded) {
         setOpen(false);
       }

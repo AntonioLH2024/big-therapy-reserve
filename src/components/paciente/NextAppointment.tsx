@@ -31,6 +31,7 @@ interface Appointment {
   servicio: string;
   estado: string;
   notas: string | null;
+  psicologo_id: string;
   psicologo: {
     nombre: string;
     apellidos: string;
@@ -61,6 +62,7 @@ export const NextAppointment = () => {
           servicio,
           estado,
           notas,
+          psicologo_id,
           psicologo:profiles!psicologo_id (
             nombre,
             apellidos
@@ -82,6 +84,46 @@ export const NextAppointment = () => {
     }
   };
 
+  const sendNotification = async (type: "scheduled" | "changed" | "cancelled", appointmentData: Appointment) => {
+    try {
+      // Get patient email
+      const { data: authData } = await supabase.auth.getUser();
+      const pacienteEmail = authData?.user?.email;
+
+      if (!pacienteEmail) {
+        console.error("Patient email not found");
+        return;
+      }
+
+      // For now, use a placeholder for psychologist email
+      // In production, you would store emails in the profiles table
+      const psicologoEmail = "psicologo@example.com";
+
+      const appointmentDate = new Date(appointmentData.fecha_hora);
+      
+      await supabase.functions.invoke("send-appointment-notification", {
+        body: {
+          appointmentId: appointmentData.id,
+          type,
+          pacienteEmail,
+          psicologoEmail,
+          appointmentDetails: {
+            fecha: format(appointmentDate, "EEEE, d 'de' MMMM yyyy", { locale: es }),
+            hora: format(appointmentDate, "HH:mm", { locale: es }),
+            servicio: appointmentData.servicio,
+            pacienteNombre: user?.email?.split('@')[0] || "Paciente",
+            psicologoNombre: `${appointmentData.psicologo.nombre} ${appointmentData.psicologo.apellidos}`,
+          },
+        },
+      });
+
+      console.log(`${type} notification sent successfully`);
+    } catch (error) {
+      console.error("Error sending notification:", error);
+      // Don't fail the operation if notification fails
+    }
+  };
+
   const handleCancel = async () => {
     if (!appointment) return;
     
@@ -94,6 +136,9 @@ export const NextAppointment = () => {
 
       if (error) throw error;
 
+      // Send cancellation notification
+      await sendNotification("cancelled", appointment);
+
       toast.success("Cita cancelada exitosamente");
       setAppointment(null);
       setShowCancelDialog(false);
@@ -105,10 +150,41 @@ export const NextAppointment = () => {
     }
   };
 
-  const handleAppointmentScheduled = () => {
+  const handleAppointmentScheduled = async () => {
     setShowChangeDialog(false);
-    fetchNextAppointment();
-    toast.success("Cita actualizada exitosamente");
+    
+    // Wait a bit for the new appointment to be saved
+    setTimeout(async () => {
+      await fetchNextAppointment();
+      
+      // Get the new appointment and send notification
+      const { data: newAppointment } = await supabase
+        .from("citas")
+        .select(`
+          id,
+          fecha_hora,
+          servicio,
+          estado,
+          notas,
+          psicologo_id,
+          psicologo:profiles!psicologo_id (
+            nombre,
+            apellidos
+          )
+        `)
+        .eq("paciente_id", user?.id)
+        .eq("estado", "programada")
+        .gte("fecha_hora", new Date().toISOString())
+        .order("fecha_hora", { ascending: true })
+        .limit(1)
+        .single();
+
+      if (newAppointment) {
+        await sendNotification("changed", newAppointment);
+      }
+      
+      toast.success("Cita actualizada exitosamente");
+    }, 1000);
   };
 
   if (loading) {
