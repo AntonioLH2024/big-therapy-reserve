@@ -9,7 +9,8 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { User, Phone, Calendar, Clock } from "lucide-react";
+import { User, Phone, Calendar, Clock, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 export const PatientsManager = () => {
   const { user } = useAuth();
@@ -18,6 +19,7 @@ export const PatientsManager = () => {
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [patientAppointments, setPatientAppointments] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -92,6 +94,17 @@ export const PatientsManager = () => {
     return <div className="text-center py-8">Cargando...</div>;
   }
 
+  const filteredPatients = patients.filter((patient) => {
+    const searchLower = searchTerm.toLowerCase();
+    const fullName = `${patient.nombre} ${patient.apellidos}`.toLowerCase();
+    const phone = patient.telefono?.toLowerCase() || "";
+    
+    return (
+      fullName.includes(searchLower) ||
+      phone.includes(searchLower)
+    );
+  });
+
   return (
     <>
       <Card className="bg-card border-border">
@@ -103,7 +116,20 @@ export const PatientsManager = () => {
           {patients.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No tienes pacientes registrados</p>
           ) : (
-            <Table>
+            <>
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nombre o teléfono..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              {filteredPatients.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No se encontraron pacientes</p>
+              ) : (
+                <Table>
               <TableHeader>
                 <TableRow className="border-border">
                   <TableHead className="text-muted-foreground">Nombre</TableHead>
@@ -112,7 +138,7 @@ export const PatientsManager = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {patients.map((patient) => (
+                {filteredPatients.map((patient) => (
                   <TableRow 
                     key={patient.id} 
                     className="border-border cursor-pointer hover:bg-muted/50 transition-colors"
@@ -127,6 +153,8 @@ export const PatientsManager = () => {
                 ))}
               </TableBody>
             </Table>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
