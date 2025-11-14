@@ -3,10 +3,27 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/integrations/supabase/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, User, MapPin } from "lucide-react";
+import { Calendar, Clock, User, MapPin, X, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { AppointmentScheduler } from "./AppointmentScheduler";
 
 interface Appointment {
   id: string;
@@ -24,6 +41,9 @@ export const NextAppointment = () => {
   const { user } = useAuth();
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showChangeDialog, setShowChangeDialog] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -60,6 +80,35 @@ export const NextAppointment = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCancel = async () => {
+    if (!appointment) return;
+    
+    setCancelling(true);
+    try {
+      const { error } = await supabase
+        .from("citas")
+        .update({ estado: "cancelada" })
+        .eq("id", appointment.id);
+
+      if (error) throw error;
+
+      toast.success("Cita cancelada exitosamente");
+      setAppointment(null);
+      setShowCancelDialog(false);
+    } catch (error: any) {
+      console.error("Error cancelling appointment:", error);
+      toast.error("Error al cancelar la cita");
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const handleAppointmentScheduled = () => {
+    setShowChangeDialog(false);
+    fetchNextAppointment();
+    toast.success("Cita actualizada exitosamente");
   };
 
   if (loading) {
@@ -109,7 +158,58 @@ export const NextAppointment = () => {
             <p className="text-foreground">{appointment.notas}</p>
           </div>
         )}
+        
+        <div className="flex gap-2 pt-4">
+          <Button 
+            variant="outline" 
+            className="flex-1"
+            onClick={() => setShowChangeDialog(true)}
+          >
+            <Edit className="mr-2 h-4 w-4" />
+            Cambiar Cita
+          </Button>
+          <Button 
+            variant="destructive" 
+            className="flex-1"
+            onClick={() => setShowCancelDialog(true)}
+          >
+            <X className="mr-2 h-4 w-4" />
+            Cancelar Cita
+          </Button>
+        </div>
       </CardContent>
+
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Cancelar cita?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas cancelar tu cita del{" "}
+              {format(new Date(appointment.fecha_hora), "d 'de' MMMM 'a las' HH:mm", { locale: es })}?
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No, mantener cita</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleCancel}
+              disabled={cancelling}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {cancelling ? "Cancelando..." : "Sí, cancelar cita"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={showChangeDialog} onOpenChange={setShowChangeDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Cambiar Cita</DialogTitle>
+          </DialogHeader>
+          <AppointmentScheduler embedded onAppointmentScheduled={handleAppointmentScheduled} />
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

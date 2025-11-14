@@ -25,7 +25,12 @@ interface Psychologist {
   apellidos: string;
 }
 
-export const AppointmentScheduler = () => {
+interface AppointmentSchedulerProps {
+  embedded?: boolean;
+  onAppointmentScheduled?: () => void;
+}
+
+export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled }: AppointmentSchedulerProps = {}) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -130,12 +135,18 @@ export const AppointmentScheduler = () => {
       toast.success("Cita programada exitosamente");
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["psychologist-appointments"] });
-      setOpen(false);
+      if (!embedded) {
+        setOpen(false);
+      }
       setSelectedPsychologist("");
       setSelectedDate(undefined);
       setSelectedTime("");
       setServicio("");
       setNotas("");
+      
+      if (onAppointmentScheduled) {
+        onAppointmentScheduled();
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || "Error al programar la cita");
@@ -150,6 +161,148 @@ export const AppointmentScheduler = () => {
     createAppointment.mutate();
   };
 
+  const formContent = (
+    <div className="space-y-6">
+      {/* Select Psychologist */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-foreground">
+          Seleccionar Psicólogo
+        </label>
+        <Select value={selectedPsychologist} onValueChange={setSelectedPsychologist}>
+          <SelectTrigger>
+            <SelectValue placeholder="Elige un psicólogo" />
+          </SelectTrigger>
+          <SelectContent>
+            {loadingPsychologists ? (
+              <SelectItem value="loading" disabled>
+                Cargando...
+              </SelectItem>
+            ) : (
+              psychologists?.map((psy) => (
+                <SelectItem key={psy.id} value={psy.id}>
+                  {psy.nombre} {psy.apellidos}
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Service Type */}
+      {selectedPsychologist && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">
+            Tipo de Servicio
+          </label>
+          <Input
+            value={servicio}
+            onChange={(e) => setServicio(e.target.value)}
+            placeholder="Ej: Consulta Individual, Terapia de Parejas"
+            className="bg-background"
+          />
+        </div>
+      )}
+
+      {/* Calendar and Time Slots */}
+      {selectedPsychologist && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">
+            Seleccionar Fecha y Hora
+          </label>
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Calendar */}
+            <div className="flex justify-center border border-border rounded-md p-4">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                locale={es}
+                className="rounded-md pointer-events-auto"
+              />
+            </div>
+
+            {/* Time Slots */}
+            {selectedDate && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Horas Disponibles
+                </label>
+                <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto pr-2">
+                  {availableSlots().map((slot) => (
+                    <Button
+                      key={slot}
+                      variant={selectedTime === slot ? "default" : "outline"}
+                      onClick={() => setSelectedTime(slot)}
+                      className="w-full"
+                    >
+                      <Clock className="mr-2 h-4 w-4" />
+                      {slot}
+                    </Button>
+                  ))}
+                </div>
+                {availableSlots().length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No hay horarios disponibles para esta fecha
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Notes (optional) */}
+      {selectedPsychologist && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">
+            Notas (opcional)
+          </label>
+          <Textarea
+            value={notas}
+            onChange={(e) => setNotas(e.target.value)}
+            placeholder="Información adicional sobre la cita..."
+            className="bg-background"
+            rows={3}
+          />
+        </div>
+      )}
+
+      {/* Confirmation Summary */}
+      {selectedPsychologist && selectedDate && selectedTime && servicio && (
+        <div className="flex flex-col gap-2 pt-4 border-t border-border">
+          <div className="text-sm text-muted-foreground">
+            <p>
+              <strong>Psicólogo:</strong>{" "}
+              {psychologists?.find((p) => p.id === selectedPsychologist)?.nombre}{" "}
+              {psychologists?.find((p) => p.id === selectedPsychologist)?.apellidos}
+            </p>
+            <p>
+              <strong>Fecha:</strong> {format(selectedDate, "PPP", { locale: es })}
+            </p>
+            <p>
+              <strong>Hora:</strong> {selectedTime}
+            </p>
+            <p>
+              <strong>Servicio:</strong> {servicio}
+            </p>
+          </div>
+          <Button
+            onClick={handleSubmit}
+            disabled={createAppointment.isPending}
+            className="w-full"
+          >
+            {createAppointment.isPending ? "Programando..." : "Confirmar Cita"}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
+  if (embedded) {
+    return formContent;
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -162,142 +315,7 @@ export const AppointmentScheduler = () => {
         <DialogHeader>
           <DialogTitle>Programar Nueva Cita</DialogTitle>
         </DialogHeader>
-
-        <div className="space-y-6">
-          {/* Select Psychologist */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Seleccionar Psicólogo
-            </label>
-            <Select value={selectedPsychologist} onValueChange={setSelectedPsychologist}>
-              <SelectTrigger>
-                <SelectValue placeholder="Elige un psicólogo" />
-              </SelectTrigger>
-              <SelectContent>
-                {loadingPsychologists ? (
-                  <SelectItem value="loading" disabled>
-                    Cargando...
-                  </SelectItem>
-                ) : (
-                  psychologists?.map((psy) => (
-                    <SelectItem key={psy.id} value={psy.id}>
-                      {psy.nombre} {psy.apellidos}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Service Type */}
-          {selectedPsychologist && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                Tipo de Servicio
-              </label>
-              <Input
-                value={servicio}
-                onChange={(e) => setServicio(e.target.value)}
-                placeholder="Ej: Consulta Individual, Terapia de Parejas"
-                className="bg-background"
-              />
-            </div>
-          )}
-
-          {/* Calendar and Time Slots */}
-          {selectedPsychologist && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                Seleccionar Fecha y Hora
-              </label>
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Calendar */}
-                <div className="flex justify-center border border-border rounded-md p-4">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                    locale={es}
-                    className="rounded-md pointer-events-auto"
-                  />
-                </div>
-
-                {/* Time Slots */}
-                {selectedDate && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">
-                      Horas Disponibles
-                    </label>
-                    <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto pr-2">
-                      {availableSlots().map((slot) => (
-                        <Button
-                          key={slot}
-                          variant={selectedTime === slot ? "default" : "outline"}
-                          onClick={() => setSelectedTime(slot)}
-                          className="w-full"
-                        >
-                          <Clock className="mr-2 h-4 w-4" />
-                          {slot}
-                        </Button>
-                      ))}
-                    </div>
-                    {availableSlots().length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-8">
-                        No hay horarios disponibles para esta fecha
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Notes (optional) */}
-          {selectedPsychologist && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                Notas (opcional)
-              </label>
-              <Textarea
-                value={notas}
-                onChange={(e) => setNotas(e.target.value)}
-                placeholder="Información adicional sobre la cita..."
-                className="bg-background"
-                rows={3}
-              />
-            </div>
-          )}
-
-          {/* Confirmation Summary */}
-          {selectedPsychologist && selectedDate && selectedTime && servicio && (
-            <div className="flex flex-col gap-2 pt-4 border-t border-border">
-              <div className="text-sm text-muted-foreground">
-                <p>
-                  <strong>Psicólogo:</strong>{" "}
-                  {psychologists?.find((p) => p.id === selectedPsychologist)?.nombre}{" "}
-                  {psychologists?.find((p) => p.id === selectedPsychologist)?.apellidos}
-                </p>
-                <p>
-                  <strong>Fecha:</strong> {format(selectedDate, "PPP", { locale: es })}
-                </p>
-                <p>
-                  <strong>Hora:</strong> {selectedTime}
-                </p>
-                <p>
-                  <strong>Servicio:</strong> {servicio}
-                </p>
-              </div>
-              <Button
-                onClick={handleSubmit}
-                disabled={createAppointment.isPending}
-                className="w-full"
-              >
-                {createAppointment.isPending ? "Programando..." : "Confirmar Cita"}
-              </Button>
-            </div>
-          )}
-        </div>
+        {formContent}
       </DialogContent>
     </Dialog>
   );
