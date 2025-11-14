@@ -3,12 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/integrations/supabase/auth";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogOut, Calendar, Users, Clock, User, CalendarDays } from "lucide-react";
+import { LogOut, Calendar, Users, Clock, User, CalendarDays, BarChart3 } from "lucide-react";
 import { AppointmentsManager } from "@/components/psicologo/AppointmentsManager";
 import { PatientsManager } from "@/components/psicologo/PatientsManager";
 import { ScheduleConfig } from "@/components/psicologo/ScheduleConfig";
 import { ProfileEditor } from "@/components/psicologo/ProfileEditor";
 import { CalendarView } from "@/components/psicologo/CalendarView";
+import { CRMDashboard } from "@/components/psicologo/CRMDashboard";
 
 const PsicologoDashboard = () => {
   const navigate = useNavigate();
@@ -49,8 +50,12 @@ const PsicologoDashboard = () => {
           <p className="text-muted-foreground">Gestiona tus citas, pacientes y perfil profesional</p>
         </div>
 
-        <Tabs defaultValue="citas" className="space-y-6">
+        <Tabs defaultValue="crm" className="space-y-6">
           <TabsList className="bg-card border-border">
+            <TabsTrigger value="crm" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              CRM
+            </TabsTrigger>
             <TabsTrigger value="citas" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Calendar className="h-4 w-4 mr-2" />
               Citas
@@ -72,6 +77,10 @@ const PsicologoDashboard = () => {
               Perfil
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="crm">
+            <CRMDashboard />
+          </TabsContent>
 
           <TabsContent value="citas">
             <AppointmentsManager />
