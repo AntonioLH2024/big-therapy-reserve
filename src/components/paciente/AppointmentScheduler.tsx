@@ -93,11 +93,24 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled 
 
   // Generate available time slots
   const availableSlots = () => {
+    if (!selectedDate) return [];
+    
     const slots = [];
+    const now = new Date();
+    const isToday = selectedDate.toDateString() === now.toDateString();
+    
     for (let hour = 9; hour <= 17; hour++) {
-      if (!existingAppointments?.includes(hour)) {
-        slots.push(`${hour.toString().padStart(2, "0")}:00`);
+      // Skip if hour is already taken
+      if (existingAppointments?.includes(hour)) {
+        continue;
       }
+      
+      // Skip past hours for today
+      if (isToday && hour <= now.getHours()) {
+        continue;
+      }
+      
+      slots.push(`${hour.toString().padStart(2, "0")}:00`);
     }
     return slots;
   };
@@ -118,6 +131,23 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled 
       const [hour] = selectedTime.split(":");
       const appointmentDate = new Date(selectedDate);
       appointmentDate.setHours(parseInt(hour), 0, 0, 0);
+
+      // Double-check for conflicts before inserting
+      const { data: conflictCheck, error: conflictError } = await supabase
+        .from("citas")
+        .select("id")
+        .eq("psicologo_id", selectedPsychologist)
+        .eq("fecha_hora", appointmentDate.toISOString())
+        .eq("estado", "programada")
+        .maybeSingle();
+
+      if (conflictError) {
+        console.error("Error checking conflicts:", conflictError);
+      }
+
+      if (conflictCheck) {
+        throw new Error("Este horario ya no está disponible. Por favor selecciona otro horario.");
+      }
 
       const { data, error } = await supabase.from("citas").insert({
         paciente_id: user.id,
@@ -189,7 +219,11 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled 
       }
     },
     onError: (error: Error) => {
+      console.error("Error creating appointment:", error);
       toast.error(error.message || "Error al programar la cita");
+      
+      // Refresh available slots in case of conflict
+      queryClient.invalidateQueries({ queryKey: ["psychologist-appointments"] });
     },
   });
 
