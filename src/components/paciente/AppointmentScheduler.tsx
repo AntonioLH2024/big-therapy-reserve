@@ -13,6 +13,7 @@ import { Calendar as CalendarIcon, Clock, Check } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { z } from "zod";
+import { cn } from "@/lib/utils";
 
 const appointmentSchema = z.object({
   servicio: z.string().trim().min(1, "Servicio requerido").max(200, "Servicio muy largo"),
@@ -101,11 +102,6 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled,
     const isToday = selectedDate.toDateString() === now.toDateString();
     
     for (let hour = 9; hour <= 17; hour++) {
-      // Skip if hour is already taken
-      if (existingAppointments?.includes(hour)) {
-        continue;
-      }
-      
       // Skip past hours for today
       if (isToday && hour <= now.getHours()) {
         continue;
@@ -114,6 +110,13 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled,
       slots.push(`${hour.toString().padStart(2, "0")}:00`);
     }
     return slots;
+  };
+
+  // Check if a time slot is occupied
+  const isSlotOccupied = (slot: string) => {
+    if (!existingAppointments) return false;
+    const [hour] = slot.split(":");
+    return existingAppointments.includes(parseInt(hour));
   };
 
   // Create appointment mutation
@@ -330,17 +333,26 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled,
                   Horas Disponibles
                 </label>
                 <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto pr-2">
-                  {availableSlots().map((slot) => (
-                    <Button
-                      key={slot}
-                      variant={selectedTime === slot ? "default" : "outline"}
-                      onClick={() => setSelectedTime(slot)}
-                      className="w-full"
-                    >
-                      <Clock className="mr-2 h-4 w-4" />
-                      {slot}
-                    </Button>
-                  ))}
+                  {availableSlots().map((slot) => {
+                    const isOccupied = isSlotOccupied(slot);
+                    const isSelected = selectedTime === slot;
+                    
+                    return (
+                      <Button
+                        key={slot}
+                        variant={isSelected ? "default" : "outline"}
+                        onClick={() => setSelectedTime(slot)}
+                        disabled={isOccupied}
+                        className={cn(
+                          "w-full",
+                          isOccupied && "bg-red-500 text-white border-red-500 opacity-60 cursor-not-allowed"
+                        )}
+                      >
+                        <Clock className="mr-2 h-4 w-4" />
+                        {slot}
+                      </Button>
+                    );
+                  })}
                 </div>
                 {availableSlots().length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-8">
