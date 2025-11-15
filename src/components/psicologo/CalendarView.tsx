@@ -18,8 +18,9 @@ import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Plus, Check, ChevronsUpDown, Filter } from "lucide-react";
+import { Plus, Check, ChevronsUpDown, Filter, Edit, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Appointment {
   id: string;
@@ -53,6 +54,9 @@ export const CalendarView = () => {
   const [patients, setPatients] = useState<any[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newAppointmentDate, setNewAppointmentDate] = useState<Date | undefined>();
+  const [appointmentToEdit, setAppointmentToEdit] = useState<Appointment | null>(null);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [appointmentToCancel, setAppointmentToCancel] = useState<Appointment | null>(null);
 
   const form = useForm<AppointmentFormData>({
     resolver: zodResolver(appointmentSchema),
@@ -144,6 +148,7 @@ export const CalendarView = () => {
 
   const handleNewAppointment = () => {
     if (selectedDate) {
+      setAppointmentToEdit(null);
       setNewAppointmentDate(selectedDate);
       setIsDialogOpen(true);
       form.reset({
@@ -153,6 +158,43 @@ export const CalendarView = () => {
         notas: "",
       });
     }
+  };
+
+  const handleEditAppointment = (appointment: Appointment) => {
+    setAppointmentToEdit(appointment);
+    setNewAppointmentDate(new Date(appointment.fecha_hora));
+    form.reset({
+      paciente_id: appointment.paciente_id,
+      hora: format(new Date(appointment.fecha_hora), "HH:mm"),
+      servicio: appointment.servicio,
+      notas: appointment.notas || "",
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleCancelAppointment = (appointment: Appointment) => {
+    setAppointmentToCancel(appointment);
+    setIsCancelDialogOpen(true);
+  };
+
+  const confirmCancelAppointment = async () => {
+    if (!appointmentToCancel) return;
+
+    const { error } = await supabase
+      .from("citas")
+      .update({ estado: "cancelada" })
+      .eq("id", appointmentToCancel.id);
+
+    if (error) {
+      toast.error("Error al anular la cita");
+      console.error(error);
+    } else {
+      toast.success("Cita anulada exitosamente");
+      fetchMonthAppointments();
+    }
+
+    setIsCancelDialogOpen(false);
+    setAppointmentToCancel(null);
   };
 
   const onSubmit = async (data: AppointmentFormData) => {
@@ -165,23 +207,48 @@ export const CalendarView = () => {
     const [hours, minutes] = data.hora.split(":");
     dateTime.setHours(parseInt(hours), parseInt(minutes));
 
-    const { error } = await supabase.from("citas").insert({
-      psicologo_id: user?.id,
-      paciente_id: data.paciente_id,
-      fecha_hora: dateTime.toISOString(),
-      servicio: data.servicio,
-      notas: data.notas || null,
-      estado: "programada",
-    });
+    if (appointmentToEdit) {
+      // Update existing appointment
+      const { error } = await supabase
+        .from("citas")
+        .update({
+          paciente_id: data.paciente_id,
+          fecha_hora: dateTime.toISOString(),
+          servicio: data.servicio,
+          notas: data.notas || null,
+        })
+        .eq("id", appointmentToEdit.id);
 
-    if (error) {
-      console.error("Error creating appointment:", error);
-      toast.error(`Error al crear cita: ${error.message}`);
+      if (error) {
+        console.error("Error updating appointment:", error);
+        toast.error(`Error al actualizar cita: ${error.message}`);
+      } else {
+        toast.success("Cita actualizada exitosamente");
+        fetchMonthAppointments();
+        setIsDialogOpen(false);
+        setAppointmentToEdit(null);
+        form.reset();
+      }
     } else {
-      toast.success("Cita creada exitosamente");
-      fetchMonthAppointments();
-      setIsDialogOpen(false);
-      form.reset();
+      // Create new appointment
+      const { error } = await supabase.from("citas").insert({
+        psicologo_id: user?.id,
+        paciente_id: data.paciente_id,
+        fecha_hora: dateTime.toISOString(),
+        servicio: data.servicio,
+        notas: data.notas || null,
+        estado: "programada",
+      });
+
+      if (error) {
+        console.error("Error creating appointment:", error);
+        toast.error(`Error al crear cita: ${error.message}`);
+      } else {
+        toast.success("Cita creada exitosamente");
+        fetchMonthAppointments();
+        setIsDialogOpen(false);
+        form.reset();
+      }
     }
   };
 
@@ -264,7 +331,7 @@ export const CalendarView = () => {
                   key={appointment.id}
                   className="p-4 rounded-lg border border-border bg-background/50 hover:bg-background transition-colors"
                 >
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between mb-3">
                     <div className="space-y-1">
                       <p className="font-semibold text-foreground">
                         {format(new Date(appointment.fecha_hora), "HH:mm")}
@@ -288,6 +355,28 @@ export const CalendarView = () => {
                       {appointment.estado}
                     </Badge>
                   </div>
+                  {appointment.estado !== "cancelada" && appointment.estado !== "completada" && (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditAppointment(appointment)}
+                        className="flex-1"
+                      >
+                        <Edit className="mr-2 h-3 w-3" />
+                        Cambiar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleCancelAppointment(appointment)}
+                        className="flex-1"
+                      >
+                        <X className="mr-2 h-3 w-3" />
+                        Anular
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -300,7 +389,7 @@ export const CalendarView = () => {
         <DialogContent className="bg-card border-border max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-foreground">
-              Nueva Cita - {newAppointmentDate ? format(newAppointmentDate, "d 'de' MMMM 'de' yyyy", { locale: es }) : ""}
+              {appointmentToEdit ? "Editar Cita" : "Nueva Cita"} - {newAppointmentDate ? format(newAppointmentDate, "d 'de' MMMM 'de' yyyy", { locale: es }) : ""}
             </DialogTitle>
           </DialogHeader>
           <Form {...form}>
@@ -407,8 +496,17 @@ export const CalendarView = () => {
               />
               <div className="flex gap-2">
                 <Button type="submit" className="flex-1">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Crear Cita
+                  {appointmentToEdit ? (
+                    <>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Actualizar Cita
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Crear Cita
+                    </>
+                  )}
                 </Button>
                 <Button type="button" variant="outline" onClick={handleCloseDialog}>
                   Cancelar
@@ -418,6 +516,48 @@ export const CalendarView = () => {
           </Form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">¿Anular esta cita?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              {appointmentToCancel && (
+                <>
+                  <p className="mb-2">
+                    Estás a punto de anular la cita con{" "}
+                    <span className="font-semibold text-foreground">
+                      {appointmentToCancel.paciente.nombre} {appointmentToCancel.paciente.apellidos}
+                    </span>
+                  </p>
+                  <p className="mb-1">
+                    <span className="font-semibold">Fecha:</span>{" "}
+                    {format(new Date(appointmentToCancel.fecha_hora), "d 'de' MMMM 'de' yyyy", { locale: es })}
+                  </p>
+                  <p className="mb-1">
+                    <span className="font-semibold">Hora:</span>{" "}
+                    {format(new Date(appointmentToCancel.fecha_hora), "HH:mm")}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Servicio:</span> {appointmentToCancel.servicio}
+                  </p>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-background border-border text-foreground hover:bg-accent">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmCancelAppointment}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Anular Cita
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
