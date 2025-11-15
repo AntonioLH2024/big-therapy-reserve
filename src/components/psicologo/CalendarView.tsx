@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -15,9 +14,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { toast } from "sonner";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { Plus, Check, ChevronsUpDown, Filter, Edit, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -35,15 +31,6 @@ interface Appointment {
   };
 }
 
-const appointmentSchema = z.object({
-  paciente_id: z.string().min(1, "Selecciona un paciente"),
-  hora: z.string().min(1, "Ingresa la hora").regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato de hora inválido (HH:mm)"),
-  servicio: z.string().trim().min(1, "Ingresa el servicio").max(200, "El servicio debe tener menos de 200 caracteres"),
-  notas: z.string().trim().max(1000, "Las notas deben tener menos de 1000 caracteres").optional(),
-});
-
-type AppointmentFormData = z.infer<typeof appointmentSchema>;
-
 export const CalendarView = () => {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -58,15 +45,12 @@ export const CalendarView = () => {
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [appointmentToCancel, setAppointmentToCancel] = useState<Appointment | null>(null);
 
-  const form = useForm<AppointmentFormData>({
-    resolver: zodResolver(appointmentSchema),
-    defaultValues: {
-      paciente_id: "",
-      hora: "",
-      servicio: "",
-      notas: "",
-    },
-  });
+  // State for step-by-step confirmation modal
+  const [selectedPatientId, setSelectedPatientId] = useState<string>("");
+  const [selectedHora, setSelectedHora] = useState<string>("");
+  const [selectedServicio, setSelectedServicio] = useState<string>("");
+  const [selectedNotas, setSelectedNotas] = useState<string>("");
+  const [isPatientPopoverOpen, setIsPatientPopoverOpen] = useState(false);
 
   useEffect(() => {
     if (user && selectedDate) {
@@ -151,24 +135,20 @@ export const CalendarView = () => {
       setAppointmentToEdit(null);
       setNewAppointmentDate(selectedDate);
       setIsDialogOpen(true);
-      form.reset({
-        paciente_id: "",
-        hora: "",
-        servicio: "",
-        notas: "",
-      });
+      setSelectedPatientId("");
+      setSelectedHora("");
+      setSelectedServicio("");
+      setSelectedNotas("");
     }
   };
 
   const handleEditAppointment = (appointment: Appointment) => {
     setAppointmentToEdit(appointment);
     setNewAppointmentDate(new Date(appointment.fecha_hora));
-    form.reset({
-      paciente_id: appointment.paciente_id,
-      hora: format(new Date(appointment.fecha_hora), "HH:mm"),
-      servicio: appointment.servicio,
-      notas: appointment.notas || "",
-    });
+    setSelectedPatientId(appointment.paciente_id);
+    setSelectedHora(format(new Date(appointment.fecha_hora), "HH:mm"));
+    setSelectedServicio(appointment.servicio);
+    setSelectedNotas(appointment.notas || "");
     setIsDialogOpen(true);
   };
 
@@ -197,14 +177,42 @@ export const CalendarView = () => {
     setAppointmentToCancel(null);
   };
 
-  const onSubmit = async (data: AppointmentFormData) => {
+  const handleConfirmAppointment = async () => {
+    // Validation
+    if (!selectedPatientId) {
+      toast.error("Selecciona un paciente");
+      return;
+    }
+    if (!selectedHora) {
+      toast.error("Ingresa la hora");
+      return;
+    }
+    if (!selectedServicio.trim()) {
+      toast.error("Ingresa el servicio");
+      return;
+    }
+    if (selectedServicio.trim().length > 200) {
+      toast.error("El servicio debe tener menos de 200 caracteres");
+      return;
+    }
+    if (selectedNotas.trim().length > 1000) {
+      toast.error("Las notas deben tener menos de 1000 caracteres");
+      return;
+    }
+    
+    const horaRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!horaRegex.test(selectedHora)) {
+      toast.error("Formato de hora inválido (HH:mm)");
+      return;
+    }
+
     if (!newAppointmentDate) {
       toast.error("Selecciona una fecha");
       return;
     }
 
     const dateTime = new Date(newAppointmentDate);
-    const [hours, minutes] = data.hora.split(":");
+    const [hours, minutes] = selectedHora.split(":");
     dateTime.setHours(parseInt(hours), parseInt(minutes));
 
     if (appointmentToEdit) {
@@ -212,10 +220,10 @@ export const CalendarView = () => {
       const { error } = await supabase
         .from("citas")
         .update({
-          paciente_id: data.paciente_id,
+          paciente_id: selectedPatientId,
           fecha_hora: dateTime.toISOString(),
-          servicio: data.servicio,
-          notas: data.notas || null,
+          servicio: selectedServicio.trim(),
+          notas: selectedNotas.trim() || null,
         })
         .eq("id", appointmentToEdit.id);
 
@@ -227,16 +235,19 @@ export const CalendarView = () => {
         fetchMonthAppointments();
         setIsDialogOpen(false);
         setAppointmentToEdit(null);
-        form.reset();
+        setSelectedPatientId("");
+        setSelectedHora("");
+        setSelectedServicio("");
+        setSelectedNotas("");
       }
     } else {
       // Create new appointment
       const { error } = await supabase.from("citas").insert({
         psicologo_id: user?.id,
-        paciente_id: data.paciente_id,
+        paciente_id: selectedPatientId,
         fecha_hora: dateTime.toISOString(),
-        servicio: data.servicio,
-        notas: data.notas || null,
+        servicio: selectedServicio.trim(),
+        notas: selectedNotas.trim() || null,
         estado: "programada",
       });
 
@@ -247,14 +258,20 @@ export const CalendarView = () => {
         toast.success("Cita creada exitosamente");
         fetchMonthAppointments();
         setIsDialogOpen(false);
-        form.reset();
+        setSelectedPatientId("");
+        setSelectedHora("");
+        setSelectedServicio("");
+        setSelectedNotas("");
       }
     }
   };
 
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
-    form.reset();
+    setSelectedPatientId("");
+    setSelectedHora("");
+    setSelectedServicio("");
+    setSelectedNotas("");
   };
 
   const selectedDateAppointments = getAppointmentsForSelectedDate();
@@ -386,125 +403,176 @@ export const CalendarView = () => {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="bg-card border-border max-w-2xl">
+        <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">
-              {appointmentToEdit ? "Editar Cita" : "Nueva Cita"} - {newAppointmentDate ? format(newAppointmentDate, "d 'de' MMMM 'de' yyyy", { locale: es }) : ""}
+              {appointmentToEdit ? "Cambiar Cita" : "Nueva Cita"} - {newAppointmentDate ? format(newAppointmentDate, "d 'de' MMMM 'de' yyyy", { locale: es }) : ""}
             </DialogTitle>
           </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="paciente_id"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel className="text-foreground">Paciente</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            className={cn(
-                              "w-full justify-between bg-background border-border text-foreground",
-                              !field.value && "text-muted-foreground"
-                            )}
+          
+          <div className="space-y-6">
+            {/* Patient Selection */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                Paciente
+                {selectedPatientId && (
+                  <Check className="h-4 w-4 text-green-500" />
+                )}
+              </label>
+              <Popover open={isPatientPopoverOpen} onOpenChange={setIsPatientPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className={cn(
+                      "w-full justify-between bg-background border-border text-foreground",
+                      !selectedPatientId && "text-muted-foreground"
+                    )}
+                  >
+                    {selectedPatientId
+                      ? patients.find((patient) => patient.id === selectedPatientId)
+                          ? `${patients.find((patient) => patient.id === selectedPatientId)?.nombre} ${patients.find((patient) => patient.id === selectedPatientId)?.apellidos}`
+                          : "Selecciona un paciente"
+                      : "Selecciona un paciente"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0 bg-card border-border" align="start">
+                  <Command className="bg-card">
+                    <CommandInput placeholder="Buscar paciente..." className="h-9 bg-background text-foreground" />
+                    <CommandList>
+                      <CommandEmpty className="text-muted-foreground py-6 text-center text-sm">
+                        No se encontraron pacientes.
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {patients.map((patient) => (
+                          <CommandItem
+                            key={patient.id}
+                            value={`${patient.nombre} ${patient.apellidos}`}
+                            onSelect={() => {
+                              setSelectedPatientId(patient.id);
+                              setIsPatientPopoverOpen(false);
+                            }}
+                            className="text-foreground hover:bg-accent cursor-pointer"
                           >
-                            {field.value
-                              ? patients.find((patient) => patient.id === field.value)
-                                  ? `${patients.find((patient) => patient.id === field.value)?.nombre} ${patients.find((patient) => patient.id === field.value)?.apellidos}`
-                                  : "Selecciona un paciente"
-                              : "Selecciona un paciente"}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-full p-0 bg-card border-border" align="start">
-                        <Command className="bg-card">
-                          <CommandInput placeholder="Buscar paciente..." className="h-9 bg-background text-foreground" />
-                          <CommandList>
-                            <CommandEmpty className="text-muted-foreground py-6 text-center text-sm">
-                              No se encontraron pacientes.
-                            </CommandEmpty>
-                            <CommandGroup>
-                              {patients.map((patient) => (
-                                <CommandItem
-                                  key={patient.id}
-                                  value={`${patient.nombre} ${patient.apellidos}`}
-                                  onSelect={() => {
-                                    form.setValue("paciente_id", patient.id);
-                                  }}
-                                  className="text-foreground hover:bg-accent cursor-pointer"
-                                >
-                                  {patient.nombre} {patient.apellidos}
-                                  <Check
-                                    className={cn(
-                                      "ml-auto h-4 w-4",
-                                      patient.id === field.value ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
+                            {patient.nombre} {patient.apellidos}
+                            <Check
+                              className={cn(
+                                "ml-auto h-4 w-4",
+                                patient.id === selectedPatientId ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Time Input */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                Hora
+                {selectedHora && (
+                  <Check className="h-4 w-4 text-green-500" />
                 )}
+              </label>
+              <Input 
+                type="time" 
+                value={selectedHora}
+                onChange={(e) => setSelectedHora(e.target.value)}
+                className="bg-background border-border text-foreground" 
               />
-              <FormField
-                control={form.control}
-                name="hora"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-foreground">Hora</FormLabel>
-                    <FormControl>
-                      <Input type="time" className="bg-background border-border text-foreground" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+            </div>
+
+            {/* Service Input */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                Servicio
+                {selectedServicio && (
+                  <Check className="h-4 w-4 text-green-500" />
                 )}
+              </label>
+              <Input 
+                value={selectedServicio}
+                onChange={(e) => setSelectedServicio(e.target.value)}
+                className="bg-background border-border text-foreground" 
+                placeholder="Ej: Terapia Individual" 
               />
-              <FormField
-                control={form.control}
-                name="servicio"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-foreground">Servicio</FormLabel>
-                    <FormControl>
-                      <Input className="bg-background border-border text-foreground" placeholder="Ej: Terapia Individual" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+            </div>
+
+            {/* Notes Input */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                Notas (opcional)
+                {selectedNotas && (
+                  <Check className="h-4 w-4 text-green-500" />
                 )}
+              </label>
+              <Textarea 
+                value={selectedNotas}
+                onChange={(e) => setSelectedNotas(e.target.value)}
+                className="bg-background border-border text-foreground" 
+                placeholder="Notas opcionales..."
+                rows={3}
               />
-              <FormField
-                control={form.control}
-                name="notas"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-foreground">Notas</FormLabel>
-                    <FormControl>
-                      <Textarea className="bg-background border-border text-foreground" placeholder="Notas opcionales..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            </div>
+
+            {/* Confirmation Summary */}
+            <div className="flex flex-col gap-4 pt-4 border-t border-border">
+              {selectedPatientId && selectedHora && selectedServicio && newAppointmentDate && (
+                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                  <h3 className="font-semibold text-foreground mb-3">Resumen de la Cita</h3>
+                  <div className="text-sm space-y-1">
+                    <p className="flex justify-between">
+                      <span className="text-muted-foreground">Paciente:</span>
+                      <span className="font-medium text-foreground">
+                        {patients.find((p) => p.id === selectedPatientId)?.nombre}{" "}
+                        {patients.find((p) => p.id === selectedPatientId)?.apellidos}
+                      </span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span className="text-muted-foreground">Fecha:</span>
+                      <span className="font-medium text-foreground">
+                        {format(newAppointmentDate, "PPP", { locale: es })}
+                      </span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span className="text-muted-foreground">Hora:</span>
+                      <span className="font-medium text-foreground">{selectedHora}</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span className="text-muted-foreground">Servicio:</span>
+                      <span className="font-medium text-foreground">{selectedServicio}</span>
+                    </p>
+                    {selectedNotas && (
+                      <p className="flex justify-between">
+                        <span className="text-muted-foreground">Notas:</span>
+                        <span className="font-medium text-foreground">{selectedNotas}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Confirmation Buttons */}
               <div className="flex gap-2">
-                <Button type="submit" className="flex-1">
+                <Button
+                  onClick={handleConfirmAppointment}
+                  disabled={!selectedPatientId || !selectedHora || !selectedServicio}
+                  className="flex-1"
+                >
                   {appointmentToEdit ? (
                     <>
                       <Edit className="mr-2 h-4 w-4" />
-                      Actualizar Cita
+                      Aceptar y Actualizar Cita
                     </>
                   ) : (
                     <>
                       <Plus className="mr-2 h-4 w-4" />
-                      Crear Cita
+                      Aceptar y Crear Cita
                     </>
                   )}
                 </Button>
@@ -512,8 +580,14 @@ export const CalendarView = () => {
                   Cancelar
                 </Button>
               </div>
-            </form>
-          </Form>
+              
+              {(!selectedPatientId || !selectedHora || !selectedServicio) && (
+                <p className="text-sm text-muted-foreground text-center">
+                  Completa todos los campos para confirmar la cita
+                </p>
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
