@@ -64,6 +64,7 @@ export const AppointmentsManager = () => {
       .from("citas")
       .select("*")
       .eq("psicologo_id", user.id)
+      .neq("estado", "cancelada")
       .gte("fecha_hora", startOfDay.toISOString())
       .lte("fecha_hora", endOfDay.toISOString());
 
