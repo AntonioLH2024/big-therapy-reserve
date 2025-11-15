@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { Plus, Pencil, Trash2, Check, ChevronsUpDown, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +31,7 @@ export const AppointmentsManager = () => {
   const [selectedServicio, setSelectedServicio] = useState<string>("");
   const [selectedNotas, setSelectedNotas] = useState<string>("");
   const [openPatientPopover, setOpenPatientPopover] = useState(false);
+  const [existingAppointments, setExistingAppointments] = useState<any[]>([]);
 
   const availableHours = [
     "09:00", "10:00", "11:00", "12:00",
@@ -43,6 +45,34 @@ export const AppointmentsManager = () => {
       fetchPatients();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (newAppointmentDate && user) {
+      fetchExistingAppointments();
+    }
+  }, [newAppointmentDate, user]);
+
+  const fetchExistingAppointments = async () => {
+    if (!newAppointmentDate || !user) return;
+
+    const startOfDay = new Date(newAppointmentDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(newAppointmentDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const { data, error } = await supabase
+      .from("citas")
+      .select("*")
+      .eq("psicologo_id", user.id)
+      .gte("fecha_hora", startOfDay.toISOString())
+      .lte("fecha_hora", endOfDay.toISOString());
+
+    if (error) {
+      console.error("Error fetching existing appointments:", error);
+    } else {
+      setExistingAppointments(data || []);
+    }
+  };
 
   const fetchAppointments = async () => {
     const today = new Date();
@@ -278,27 +308,39 @@ export const AppointmentsManager = () => {
                       mode="single"
                       selected={newAppointmentDate}
                       onSelect={setNewAppointmentDate}
-                      className="rounded-md border border-border bg-background"
+                      className="rounded-md border border-border bg-background pointer-events-auto"
                       disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                      locale={es}
+                      weekStartsOn={1}
                     />
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">Hora disponible</p>
                     <div className="grid grid-cols-3 gap-2">
-                      {availableHours.map((hora) => (
-                        <Button
-                          key={hora}
-                          variant={selectedHora === hora ? "default" : "outline"}
-                          className={cn(
-                            "w-full",
-                            selectedHora === hora && "bg-primary text-primary-foreground"
-                          )}
-                          onClick={() => setSelectedHora(hora)}
-                        >
-                          <Clock className="h-4 w-4 mr-1" />
-                          {hora}
-                        </Button>
-                      ))}
+                      {availableHours.map((hora) => {
+                        const isOccupied = existingAppointments.some((apt) => {
+                          const aptDate = new Date(apt.fecha_hora);
+                          const aptHour = `${aptDate.getHours().toString().padStart(2, '0')}:${aptDate.getMinutes().toString().padStart(2, '0')}`;
+                          return aptHour === hora && apt.id !== editingAppointment?.id;
+                        });
+
+                        return (
+                          <Button
+                            key={hora}
+                            variant={selectedHora === hora ? "default" : "outline"}
+                            className={cn(
+                              "w-full",
+                              selectedHora === hora && "bg-primary text-primary-foreground",
+                              isOccupied && "bg-red-500 text-white border-red-500 opacity-60 cursor-not-allowed hover:bg-red-500"
+                            )}
+                            onClick={() => !isOccupied && setSelectedHora(hora)}
+                            disabled={isOccupied}
+                          >
+                            <Clock className="h-4 w-4 mr-1" />
+                            {hora}
+                          </Button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
