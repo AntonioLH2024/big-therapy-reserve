@@ -6,7 +6,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -408,6 +408,9 @@ export const CalendarView = () => {
             <DialogTitle className="text-foreground">
               {appointmentToEdit ? "Cambiar Cita" : "Nueva Cita"} - {newAppointmentDate ? format(newAppointmentDate, "d 'de' MMMM 'de' yyyy", { locale: es }) : ""}
             </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Completa los campos para {appointmentToEdit ? "actualizar" : "crear"} la cita
+            </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-6">
