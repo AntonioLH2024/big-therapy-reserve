@@ -51,6 +51,7 @@ export const CalendarView = () => {
   const [selectedServicio, setSelectedServicio] = useState<string>("");
   const [selectedNotas, setSelectedNotas] = useState<string>("");
   const [isPatientPopoverOpen, setIsPatientPopoverOpen] = useState(false);
+  const [occupiedHours, setOccupiedHours] = useState<string[]>([]);
 
   useEffect(() => {
     if (user && selectedDate) {
@@ -58,6 +59,12 @@ export const CalendarView = () => {
       fetchPatients();
     }
   }, [user, selectedDate]);
+
+  useEffect(() => {
+    if (newAppointmentDate) {
+      fetchOccupiedHours(newAppointmentDate);
+    }
+  }, [newAppointmentDate, appointments]);
 
   const fetchPatients = async () => {
     const { data, error } = await supabase
@@ -70,6 +77,18 @@ export const CalendarView = () => {
     } else {
       setPatients(data || []);
     }
+  };
+
+  const fetchOccupiedHours = (date: Date) => {
+    const selectedDateStr = format(date, "yyyy-MM-dd");
+    const occupied = appointments
+      .filter(apt => {
+        const aptDate = format(new Date(apt.fecha_hora), "yyyy-MM-dd");
+        return aptDate === selectedDateStr && apt.estado !== "cancelada";
+      })
+      .map(apt => format(new Date(apt.fecha_hora), "HH:mm"));
+    
+    setOccupiedHours(occupied);
   };
 
   const fetchMonthAppointments = async () => {
@@ -514,17 +533,25 @@ export const CalendarView = () => {
                         Horas Disponibles
                       </label>
                       <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto pr-2">
-                        {["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"].map((slot) => (
-                          <Button
-                            key={slot}
-                            variant={selectedHora === slot ? "default" : "outline"}
-                            onClick={() => setSelectedHora(slot)}
-                            className="w-full"
-                          >
-                            <Clock className="mr-2 h-4 w-4" />
-                            {slot}
-                          </Button>
-                        ))}
+                        {["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"].map((slot) => {
+                          const isOccupied = occupiedHours.includes(slot);
+                          const isSelected = selectedHora === slot;
+                          
+                          return (
+                            <Button
+                              key={slot}
+                              variant={isSelected ? "default" : "outline"}
+                              onClick={() => setSelectedHora(slot)}
+                              className={cn(
+                                "w-full",
+                                isOccupied && !isSelected && "bg-red-500 text-white border-red-500 hover:bg-red-600 hover:text-white"
+                              )}
+                            >
+                              <Clock className="mr-2 h-4 w-4" />
+                              {slot}
+                            </Button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
