@@ -205,9 +205,9 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled,
             await supabase.functions.invoke("send-appointment-notification", {
               body: {
                 appointmentId: data.id,
-                type: "scheduled",
+                type: appointmentToChange ? "changed" : "scheduled",
                 pacienteEmail,
-                psicologoEmail: "psicologo@example.com",
+                psicologoId: data.psicologo_id,
                 appointmentDetails: {
                   fecha: format(appointmentDate, "EEEE, d 'de' MMMM yyyy", { locale: es }),
                   hora: format(appointmentDate, "HH:mm", { locale: es }),

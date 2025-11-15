@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@4.0.0";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -12,7 +13,8 @@ interface AppointmentNotificationRequest {
   appointmentId: string;
   type: "scheduled" | "changed" | "cancelled";
   pacienteEmail: string;
-  psicologoEmail: string;
+  psicologoEmail?: string;
+  psicologoId?: string;
   appointmentDetails: {
     fecha: string;
     hora: string;
@@ -33,11 +35,40 @@ const handler = async (req: Request): Promise<Response> => {
       appointmentId, 
       type, 
       pacienteEmail, 
-      psicologoEmail, 
+      psicologoEmail: providedPsicologoEmail,
+      psicologoId,
       appointmentDetails 
     }: AppointmentNotificationRequest = await req.json();
 
     console.log(`Processing ${type} notification for appointment ${appointmentId}`);
+
+    // Get psychologist email from database if not provided
+    let psicologoEmail = providedPsicologoEmail;
+    if (!psicologoEmail && psicologoId) {
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
+
+      const { data: userData, error } = await supabase.auth.admin.getUserById(psicologoId);
+      
+      if (error) {
+        console.error("Error fetching psychologist email:", error);
+      } else {
+        psicologoEmail = userData?.user?.email;
+      }
+    }
+
+    if (!psicologoEmail) {
+      console.error("Could not determine psychologist email");
+      return new Response(
+        JSON.stringify({ error: "Could not determine psychologist email" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
 
     const { fecha, hora, servicio, pacienteNombre, psicologoNombre } = appointmentDetails;
 
