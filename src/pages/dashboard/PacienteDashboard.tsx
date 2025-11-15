@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/integrations/supabase/auth";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogOut, Calendar, History, User } from "lucide-react";
@@ -12,12 +13,31 @@ import { AppointmentScheduler } from "@/components/paciente/AppointmentScheduler
 const PacienteDashboard = () => {
   const navigate = useNavigate();
   const { user, userRole, signOut, loading } = useAuth();
+  const [userName, setUserName] = useState<string>("");
 
   useEffect(() => {
     if (!loading && (!user || userRole !== "paciente")) {
       navigate("/auth");
     }
   }, [user, userRole, loading, navigate]);
+
+  useEffect(() => {
+    const fetchUserName = async () => {
+      if (user) {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("nombre, apellidos")
+          .eq("id", user.id)
+          .single();
+
+        if (data && !error) {
+          setUserName(`${data.nombre} ${data.apellidos}`);
+        }
+      }
+    };
+
+    fetchUserName();
+  }, [user]);
 
   if (loading) {
     return <div className="min-h-screen bg-background flex items-center justify-center">
@@ -33,7 +53,10 @@ const PacienteDashboard = () => {
             Big Citas
           </h1>
           <div className="flex items-center gap-4">
-            <span className="text-foreground">Mi Panel</span>
+            <div className="flex flex-col items-end">
+              <span className="text-foreground font-medium">{userName}</span>
+              <span className="text-sm text-muted-foreground">Mi Panel</span>
+            </div>
             <Button variant="outline" onClick={signOut}>
               <LogOut className="mr-2 h-4 w-4" />
               Cerrar Sesión
@@ -45,6 +68,9 @@ const PacienteDashboard = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-foreground mb-2">Mi Panel</h2>
+          {userName && (
+            <p className="text-lg font-medium text-foreground mb-1">{userName}</p>
+          )}
           <p className="text-muted-foreground">Gestiona tus citas y perfil</p>
         </div>
 
