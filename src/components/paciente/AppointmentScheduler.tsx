@@ -185,7 +185,11 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled,
       return data;
     },
     onSuccess: async (data) => {
-      toast.success("Cita programada exitosamente");
+      if (appointmentToChange) {
+        toast.success("Cita cambiada exitosamente. La cita anterior fue cancelada y la nueva cita ha sido creada.");
+      } else {
+        toast.success("Cita programada exitosamente");
+      }
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["psychologist-appointments"] });
       
