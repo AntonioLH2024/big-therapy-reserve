@@ -542,9 +542,10 @@ export const CalendarView = () => {
                               key={slot}
                               variant={isSelected ? "default" : "outline"}
                               onClick={() => setSelectedHora(slot)}
+                              disabled={isOccupied}
                               className={cn(
                                 "w-full",
-                                isOccupied && !isSelected && "bg-red-500 text-white border-red-500 hover:bg-red-600 hover:text-white"
+                                isOccupied && "bg-red-500 text-white border-red-500 opacity-60 cursor-not-allowed"
                               )}
                             >
                               <Clock className="mr-2 h-4 w-4" />
