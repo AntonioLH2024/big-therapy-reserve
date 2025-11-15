@@ -14,7 +14,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { toast } from "sonner";
-import { Plus, Check, ChevronsUpDown, Filter, Edit, X } from "lucide-react";
+import { Plus, Check, ChevronsUpDown, Filter, Edit, X, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
@@ -402,22 +402,22 @@ export const CalendarView = () => {
       </Card>
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={isDialogOpen} onOpenChange={(open) => {
+        if (!open) handleCloseDialog();
+        setIsDialogOpen(open);
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">
-              {appointmentToEdit ? "Cambiar Cita" : "Nueva Cita"} - {newAppointmentDate ? format(newAppointmentDate, "d 'de' MMMM 'de' yyyy", { locale: es }) : ""}
+              {appointmentToEdit ? "Cambiar Cita" : "Nueva Cita"}
             </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              Completa los campos para {appointmentToEdit ? "actualizar" : "crear"} la cita
-            </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-6">
-            {/* Patient Selection */}
+            {/* Select Patient */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                Paciente
+                Seleccionar Paciente
                 {selectedPatientId && (
                   <Check className="h-4 w-4 text-green-500" />
                 )}
@@ -427,26 +427,20 @@ export const CalendarView = () => {
                   <Button
                     variant="outline"
                     role="combobox"
-                    className={cn(
-                      "w-full justify-between bg-background border-border text-foreground",
-                      !selectedPatientId && "text-muted-foreground"
-                    )}
+                    aria-expanded={isPatientPopoverOpen}
+                    className="w-full justify-between"
                   >
                     {selectedPatientId
-                      ? patients.find((patient) => patient.id === selectedPatientId)
-                          ? `${patients.find((patient) => patient.id === selectedPatientId)?.nombre} ${patients.find((patient) => patient.id === selectedPatientId)?.apellidos}`
-                          : "Selecciona un paciente"
-                      : "Selecciona un paciente"}
+                      ? patients.find((p) => p.id === selectedPatientId)?.nombre + " " + patients.find((p) => p.id === selectedPatientId)?.apellidos
+                      : "Selecciona un paciente..."}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-full p-0 bg-card border-border" align="start">
-                  <Command className="bg-card">
-                    <CommandInput placeholder="Buscar paciente..." className="h-9 bg-background text-foreground" />
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput placeholder="Buscar paciente..." />
                     <CommandList>
-                      <CommandEmpty className="text-muted-foreground py-6 text-center text-sm">
-                        No se encontraron pacientes.
-                      </CommandEmpty>
+                      <CommandEmpty>No se encontró el paciente.</CommandEmpty>
                       <CommandGroup>
                         {patients.map((patient) => (
                           <CommandItem
@@ -456,15 +450,14 @@ export const CalendarView = () => {
                               setSelectedPatientId(patient.id);
                               setIsPatientPopoverOpen(false);
                             }}
-                            className="text-foreground hover:bg-accent cursor-pointer"
                           >
-                            {patient.nombre} {patient.apellidos}
                             <Check
                               className={cn(
-                                "ml-auto h-4 w-4",
-                                patient.id === selectedPatientId ? "opacity-100" : "opacity-0"
+                                "mr-2 h-4 w-4",
+                                selectedPatientId === patient.id ? "opacity-100" : "opacity-0"
                               )}
                             />
+                            {patient.nombre} {patient.apellidos}
                           </CommandItem>
                         ))}
                       </CommandGroup>
@@ -474,58 +467,93 @@ export const CalendarView = () => {
               </Popover>
             </div>
 
-            {/* Time Input */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                Hora
-                {selectedHora && (
-                  <Check className="h-4 w-4 text-green-500" />
-                )}
-              </label>
-              <Input 
-                type="time" 
-                value={selectedHora}
-                onChange={(e) => setSelectedHora(e.target.value)}
-                className="bg-background border-border text-foreground" 
-              />
-            </div>
+            {/* Service Type */}
+            {selectedPatientId && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                  Tipo de Servicio
+                  {selectedServicio && (
+                    <Check className="h-4 w-4 text-green-500" />
+                  )}
+                </label>
+                <Input
+                  value={selectedServicio}
+                  onChange={(e) => setSelectedServicio(e.target.value)}
+                  placeholder="Ej: Consulta Individual, Terapia de Parejas"
+                  className="bg-background"
+                />
+              </div>
+            )}
 
-            {/* Service Input */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                Servicio
-                {selectedServicio && (
-                  <Check className="h-4 w-4 text-green-500" />
-                )}
-              </label>
-              <Input 
-                value={selectedServicio}
-                onChange={(e) => setSelectedServicio(e.target.value)}
-                className="bg-background border-border text-foreground" 
-                placeholder="Ej: Terapia Individual" 
-              />
-            </div>
+            {/* Calendar and Time Slots */}
+            {selectedPatientId && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                  Seleccionar Fecha y Hora
+                  {newAppointmentDate && selectedHora && (
+                    <Check className="h-4 w-4 text-green-500" />
+                  )}
+                </label>
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Calendar */}
+                  <div className="flex justify-center border border-border rounded-md p-4">
+                    <Calendar
+                      mode="single"
+                      selected={newAppointmentDate}
+                      onSelect={setNewAppointmentDate}
+                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                      locale={es}
+                      className="rounded-md pointer-events-auto"
+                    />
+                  </div>
 
-            {/* Notes Input */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                Notas (opcional)
-                {selectedNotas && (
-                  <Check className="h-4 w-4 text-green-500" />
-                )}
-              </label>
-              <Textarea 
-                value={selectedNotas}
-                onChange={(e) => setSelectedNotas(e.target.value)}
-                className="bg-background border-border text-foreground" 
-                placeholder="Notas opcionales..."
-                rows={3}
-              />
-            </div>
+                  {/* Time Slots */}
+                  {newAppointmentDate && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">
+                        Horas Disponibles
+                      </label>
+                      <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto pr-2">
+                        {["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"].map((slot) => (
+                          <Button
+                            key={slot}
+                            variant={selectedHora === slot ? "default" : "outline"}
+                            onClick={() => setSelectedHora(slot)}
+                            className="w-full"
+                          >
+                            <Clock className="mr-2 h-4 w-4" />
+                            {slot}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
-            {/* Confirmation Summary */}
-            <div className="flex flex-col gap-4 pt-4 border-t border-border">
-              {selectedPatientId && selectedHora && selectedServicio && newAppointmentDate && (
+            {/* Notes (optional) */}
+            {selectedPatientId && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                  Notas (opcional)
+                  {selectedNotas && (
+                    <Check className="h-4 w-4 text-green-500" />
+                  )}
+                </label>
+                <Textarea
+                  value={selectedNotas}
+                  onChange={(e) => setSelectedNotas(e.target.value)}
+                  placeholder="Información adicional sobre la cita..."
+                  className="bg-background"
+                  rows={3}
+                />
+              </div>
+            )}
+
+            {/* Confirmation Summary and Button */}
+            <div className="flex flex-col gap-4 pt-4 border-t border-border mt-6">
+              {selectedPatientId && newAppointmentDate && selectedHora && selectedServicio && (
                 <div className="bg-muted/50 rounded-lg p-4 space-y-2">
                   <h3 className="font-semibold text-foreground mb-3">Resumen de la Cita</h3>
                   <div className="text-sm space-y-1">
@@ -538,9 +566,7 @@ export const CalendarView = () => {
                     </p>
                     <p className="flex justify-between">
                       <span className="text-muted-foreground">Fecha:</span>
-                      <span className="font-medium text-foreground">
-                        {format(newAppointmentDate, "PPP", { locale: es })}
-                      </span>
+                      <span className="font-medium text-foreground">{format(newAppointmentDate, "PPP", { locale: es })}</span>
                     </p>
                     <p className="flex justify-between">
                       <span className="text-muted-foreground">Hora:</span>
@@ -550,39 +576,19 @@ export const CalendarView = () => {
                       <span className="text-muted-foreground">Servicio:</span>
                       <span className="font-medium text-foreground">{selectedServicio}</span>
                     </p>
-                    {selectedNotas && (
-                      <p className="flex justify-between">
-                        <span className="text-muted-foreground">Notas:</span>
-                        <span className="font-medium text-foreground">{selectedNotas}</span>
-                      </p>
-                    )}
                   </div>
                 </div>
               )}
               
-              {/* Confirmation Buttons */}
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleConfirmAppointment}
-                  disabled={!selectedPatientId || !selectedHora || !selectedServicio}
-                  className="flex-1"
-                >
-                  {appointmentToEdit ? (
-                    <>
-                      <Edit className="mr-2 h-4 w-4" />
-                      Aceptar y Actualizar Cita
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Aceptar y Crear Cita
-                    </>
-                  )}
-                </Button>
-                <Button type="button" variant="outline" onClick={handleCloseDialog}>
-                  Cancelar
-                </Button>
-              </div>
+              {/* Confirmation Button - Always Visible */}
+              <Button
+                onClick={handleConfirmAppointment}
+                disabled={!selectedPatientId || !selectedHora || !selectedServicio}
+                size="lg"
+                className="w-full"
+              >
+                {appointmentToEdit ? "Actualizar Cita" : "Aceptar y Confirmar Cita"}
+              </Button>
               
               {(!selectedPatientId || !selectedHora || !selectedServicio) && (
                 <p className="text-sm text-muted-foreground text-center">
