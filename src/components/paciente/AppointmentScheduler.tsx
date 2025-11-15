@@ -322,6 +322,7 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled,
                 onSelect={setSelectedDate}
                 disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                 locale={es}
+                weekStartsOn={1}
                 className="rounded-md pointer-events-auto"
               />
             </div>

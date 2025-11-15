@@ -516,14 +516,15 @@ export const CalendarView = () => {
                 <div className="grid md:grid-cols-2 gap-6">
                   {/* Calendar */}
                   <div className="flex justify-center border border-border rounded-md p-4">
-                    <Calendar
-                      mode="single"
-                      selected={newAppointmentDate}
-                      onSelect={setNewAppointmentDate}
-                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                      locale={es}
-                      className="rounded-md pointer-events-auto"
-                    />
+            <Calendar
+              mode="single"
+              selected={newAppointmentDate}
+              onSelect={setNewAppointmentDate}
+              disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+              locale={es}
+              weekStartsOn={1}
+              className="rounded-md pointer-events-auto"
+            />
                   </div>
 
                   {/* Time Slots */}
