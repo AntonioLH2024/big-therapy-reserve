@@ -190,7 +190,7 @@ const Index = () => {
             </div>
           </div>
           <div className="mt-8 pt-8 border-t border-border text-center text-muted-foreground">
-            <p>&copy; 2025 Big Citas. Todos los derechos reservados.</p>
+            <p>© 2025 ALH Citas. Todos los derechos reservados.</p>
           </div>
         </div>
       </footer>
