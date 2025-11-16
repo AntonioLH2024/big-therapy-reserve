@@ -10,41 +10,43 @@ import { useAuth } from "@/integrations/supabase/auth";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { toast } from "sonner";
 import { z } from "zod";
-
 const authSchema = z.object({
   email: z.string().email("Email inválido").max(255, "Email muy largo"),
-  password: z.string().min(6, "Mínimo 6 caracteres").max(100, "Contraseña muy larga"),
+  password: z.string().min(6, "Mínimo 6 caracteres").max(100, "Contraseña muy larga")
 });
-
 const signupSchema = authSchema.extend({
   nombre: z.string().trim().min(1, "Nombre requerido").max(100, "Nombre muy largo"),
   apellidos: z.string().trim().min(1, "Apellidos requeridos").max(100, "Apellidos muy largos"),
   telefono: z.string().regex(/^[+]?[0-9\s-]{9,20}$/, "Teléfono inválido"),
-  role: z.enum(["paciente", "psicologo"], { required_error: "Selecciona un rol" }),
+  role: z.enum(["paciente", "psicologo"], {
+    required_error: "Selecciona un rol"
+  })
 });
-
 const Auth = () => {
   const navigate = useNavigate();
-  const { signIn, signUp, user } = useAuth();
+  const {
+    signIn,
+    signUp,
+    user
+  } = useAuth();
   const [loading, setLoading] = useState(false);
-
   useEffect(() => {
     // Redirect if already logged in
     if (user) {
       navigate("/");
     }
   }, [user, navigate]);
-
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    
     const formData = new FormData(e.currentTarget);
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
-
     try {
-      const validated = authSchema.parse({ email, password });
+      const validated = authSchema.parse({
+        email,
+        password
+      });
       await signIn(validated.email, validated.password);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -54,11 +56,9 @@ const Auth = () => {
       setLoading(false);
     }
   };
-
   const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    
     const formData = new FormData(e.currentTarget);
     const email = formData.get("signupEmail") as string;
     const password = formData.get("signupPassword") as string;
@@ -66,7 +66,6 @@ const Auth = () => {
     const apellidos = formData.get("lastName") as string;
     const telefono = formData.get("phone") as string;
     const role = formData.get("role") as string;
-
     try {
       const validated = signupSchema.parse({
         email,
@@ -74,14 +73,13 @@ const Auth = () => {
         nombre,
         apellidos,
         telefono,
-        role,
+        role
       });
-
       await signUp(validated.email, validated.password, {
         nombre: validated.nombre,
         apellidos: validated.apellidos,
         telefono: validated.telefono,
-        role: validated.role,
+        role: validated.role
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -91,19 +89,14 @@ const Auth = () => {
       setLoading(false);
     }
   };
-
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+  return <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1
-            className="text-4xl font-bold text-primary mb-2 cursor-pointer"
-            onClick={() => navigate("/")}
-          >
-            Big Citas
+          <h1 className="text-4xl font-bold text-primary mb-2 cursor-pointer" onClick={() => navigate("/")}>
+            Centro de psicología Reservas
           </h1>
           <p className="text-muted-foreground">Accede a tu cuenta</p>
         </div>
@@ -126,30 +119,13 @@ const Auth = () => {
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      placeholder="tu@email.com"
-                      required
-                      className="bg-background"
-                    />
+                    <Input id="email" name="email" type="email" placeholder="tu@email.com" required className="bg-background" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Contraseña</Label>
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      required
-                      className="bg-background"
-                    />
+                    <Input id="password" name="password" type="password" required className="bg-background" />
                   </div>
-                  <Button
-                    type="submit"
-                    className="w-full bg-primary hover:bg-primary/90"
-                    disabled={loading}
-                  >
+                  <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={loading}>
                     {loading ? "Ingresando..." : "Iniciar Sesión"}
                   </Button>
                 </form>
@@ -170,46 +146,20 @@ const Auth = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">Nombre</Label>
-                      <Input
-                        id="firstName"
-                        name="firstName"
-                        type="text"
-                        required
-                        className="bg-background"
-                      />
+                      <Input id="firstName" name="firstName" type="text" required className="bg-background" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="lastName">Apellidos</Label>
-                      <Input
-                        id="lastName"
-                        name="lastName"
-                        type="text"
-                        required
-                        className="bg-background"
-                      />
+                      <Input id="lastName" name="lastName" type="text" required className="bg-background" />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signupEmail">Email</Label>
-                    <Input
-                      id="signupEmail"
-                      name="signupEmail"
-                      type="email"
-                      placeholder="tu@email.com"
-                      required
-                      className="bg-background"
-                    />
+                    <Input id="signupEmail" name="signupEmail" type="email" placeholder="tu@email.com" required className="bg-background" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">Teléfono</Label>
-                    <Input
-                      id="phone"
-                      name="phone"
-                      type="tel"
-                      placeholder="+34 600 000 000"
-                      required
-                      className="bg-background"
-                    />
+                    <Input id="phone" name="phone" type="tel" placeholder="+34 600 000 000" required className="bg-background" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="role">Tipo de Usuario</Label>
@@ -225,19 +175,9 @@ const Auth = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signupPassword">Contraseña</Label>
-                    <Input
-                      id="signupPassword"
-                      name="signupPassword"
-                      type="password"
-                      required
-                      className="bg-background"
-                    />
+                    <Input id="signupPassword" name="signupPassword" type="password" required className="bg-background" />
                   </div>
-                  <Button
-                    type="submit"
-                    className="w-full bg-primary hover:bg-primary/90"
-                    disabled={loading}
-                  >
+                  <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={loading}>
                     {loading ? "Creando cuenta..." : "Crear Cuenta"}
                   </Button>
                 </form>
@@ -247,17 +187,11 @@ const Auth = () => {
         </Tabs>
 
         <div className="mt-6 text-center">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/")}
-            className="text-muted-foreground hover:text-foreground"
-          >
+          <Button variant="ghost" onClick={() => navigate("/")} className="text-muted-foreground hover:text-foreground">
             ← Volver al inicio
           </Button>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Auth;
