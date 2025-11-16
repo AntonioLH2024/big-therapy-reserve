@@ -63,8 +63,7 @@ export const PatientsManager = () => {
         user_id,
         profiles!inner(*)
       `)
-      .eq("role", "paciente")
-      .order("profiles(created_at)", { ascending: false });
+      .eq("role", "paciente");
 
     if (error) {
       toast.error("Error al cargar pacientes");
@@ -86,6 +85,8 @@ export const PatientsManager = () => {
         })
       );
 
+      // Sort by created_at descending
+      patientsWithCounts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       setPatients(patientsWithCounts);
     }
     setLoading(false);
