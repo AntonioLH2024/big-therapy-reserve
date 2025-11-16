@@ -58,13 +58,16 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled,
     queryKey: ["psychologists"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("profiles")
-        .select("id, nombre, apellidos")
+        .from("user_roles")
+        .select(`
+          user_id,
+          profiles!inner(id, nombre, apellidos)
+        `)
         .eq("role", "psicologo")
-        .order("apellidos");
+        .order("profiles(apellidos)");
 
       if (error) throw error;
-      return data as Psychologist[];
+      return (data || []).map((item: any) => item.profiles) as Psychologist[];
     },
   });
 

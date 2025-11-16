@@ -68,14 +68,17 @@ export const CalendarView = () => {
 
   const fetchPatients = async () => {
     const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
+      .from("user_roles")
+      .select(`
+        user_id,
+        profiles!inner(*)
+      `)
       .eq("role", "paciente");
 
     if (error) {
       toast.error("Error al cargar pacientes");
     } else {
-      setPatients(data || []);
+      setPatients((data || []).map((item: any) => item.profiles));
     }
   };
 
