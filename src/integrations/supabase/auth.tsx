@@ -47,15 +47,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch user role after state change
+          // Fetch user role from user_roles table (única fuente de verdad)
           setTimeout(async () => {
-            const { data: profile } = await supabase
-              .from("profiles")
+            const { data: userRoleData } = await supabase
+              .from("user_roles")
               .select("role")
-              .eq("id", session.user.id)
-              .single();
+              .eq("user_id", session.user.id)
+              .maybeSingle();
             
-            setUserRole(profile?.role || null);
+            setUserRole(userRoleData?.role || null);
           }, 0);
         } else {
           setUserRole(null);
@@ -70,12 +70,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (session?.user) {
         supabase
-          .from("profiles")
+          .from("user_roles")
           .select("role")
-          .eq("id", session.user.id)
-          .single()
-          .then(({ data: profile }) => {
-            setUserRole(profile?.role || null);
+          .eq("user_id", session.user.id)
+          .maybeSingle()
+          .then(({ data: userRoleData }) => {
+            setUserRole(userRoleData?.role || null);
             setLoading(false);
           });
       } else {
@@ -167,23 +167,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user_ip: null
       });
       
-      // Get user role and redirect accordingly
+      // Get user role from user_roles and redirect accordingly
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
+        const { data: userRoleData } = await supabase
+          .from("user_roles")
           .select("role")
-          .eq("id", user.id)
-          .single();
+          .eq("user_id", user.id)
+          .maybeSingle();
         
         toast.success("Sesión iniciada");
         
         // Redirect based on role
-        if (profile?.role === "admin") {
+        if (userRoleData?.role === "admin") {
           navigate("/dashboard/admin");
-        } else if (profile?.role === "psicologo") {
+        } else if (userRoleData?.role === "psicologo") {
           navigate("/dashboard/psicologo");
-        } else if (profile?.role === "paciente") {
+        } else if (userRoleData?.role === "paciente") {
           navigate("/dashboard/paciente");
         } else {
           navigate("/");

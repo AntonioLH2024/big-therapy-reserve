@@ -8,7 +8,6 @@ import { ThemeProvider } from "next-themes";
 import Index from "./pages/Index";
 import Servicios from "./pages/Servicios";
 import Auth from "./pages/Auth";
-import CreateAdmin from "./pages/CreateAdmin";
 import AdminDashboard from "./pages/dashboard/AdminDashboard";
 import PsicologoDashboard from "./pages/dashboard/PsicologoDashboard";
 import PacienteDashboard from "./pages/dashboard/PacienteDashboard";
@@ -28,7 +27,6 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/servicios" element={<Servicios />} />
               <Route path="/auth" element={<Auth />} />
-              <Route path="/create-admin" element={<CreateAdmin />} />
               <Route path="/dashboard/admin" element={<AdminDashboard />} />
               <Route path="/dashboard/psicologo" element={<PsicologoDashboard />} />
               <Route path="/dashboard/paciente" element={<PacienteDashboard />} />
