@@ -74,14 +74,13 @@ export const PsychologistsManager = () => {
           psicologo_detalles(especialidad, biografia)
         )
       `)
-      .eq("role", "psicologo")
-      .order("profiles(created_at)", { ascending: false });
+      .eq("role", "psicologo");
 
     if (error) {
       toast.error("Error al cargar psicólogos");
       console.error(error);
     } else {
-      // Transform data to match interface
+      // Transform data to match interface and sort by created_at
       const transformedData = data?.map((item: any) => {
         const profile = item.profiles;
         return {
@@ -90,7 +89,7 @@ export const PsychologistsManager = () => {
             ? profile.psicologo_detalles[0] 
             : profile.psicologo_detalles
         };
-      }) || [];
+      }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) || [];
       setPsychologists(transformedData);
     }
     setLoading(false);
