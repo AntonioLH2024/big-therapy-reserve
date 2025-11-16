@@ -58,10 +58,13 @@ export const PatientsManager = () => {
 
   const fetchPatients = async () => {
     const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
+      .from("user_roles")
+      .select(`
+        user_id,
+        profiles!inner(*)
+      `)
       .eq("role", "paciente")
-      .order("created_at", { ascending: false });
+      .order("profiles(created_at)", { ascending: false });
 
     if (error) {
       toast.error("Error al cargar pacientes");
@@ -69,7 +72,8 @@ export const PatientsManager = () => {
     } else {
       // Fetch appointment counts for each patient
       const patientsWithCounts = await Promise.all(
-        (data || []).map(async (patient) => {
+        (data || []).map(async (item: any) => {
+          const patient = item.profiles;
           const { count } = await supabase
             .from("citas")
             .select("*", { count: "exact", head: true })

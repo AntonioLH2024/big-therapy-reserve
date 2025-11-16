@@ -31,14 +31,14 @@ const AdminDashboard = () => {
   const fetchStats = async () => {
     // Count psychologists
     const { count: psychologistsCount } = await supabase
-      .from("profiles")
-      .select("*", { count: "exact", head: true })
+      .from("user_roles")
+      .select("user_id", { count: "exact", head: true })
       .eq("role", "psicologo");
 
     // Count patients
     const { count: patientsCount } = await supabase
-      .from("profiles")
-      .select("*", { count: "exact", head: true })
+      .from("user_roles")
+      .select("user_id", { count: "exact", head: true })
       .eq("role", "paciente");
 
     // Count today's appointments

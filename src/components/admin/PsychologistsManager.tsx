@@ -62,25 +62,35 @@ export const PsychologistsManager = () => {
 
   const fetchPsychologists = async () => {
     const { data, error } = await supabase
-      .from("profiles")
+      .from("user_roles")
       .select(`
-        *,
-        psicologo_detalles(especialidad, biografia)
+        user_id,
+        profiles!inner(
+          id,
+          nombre,
+          apellidos,
+          telefono,
+          created_at,
+          psicologo_detalles(especialidad, biografia)
+        )
       `)
       .eq("role", "psicologo")
-      .order("created_at", { ascending: false });
+      .order("profiles(created_at)", { ascending: false });
 
     if (error) {
       toast.error("Error al cargar psicólogos");
       console.error(error);
     } else {
       // Transform data to match interface
-      const transformedData = data?.map((item: any) => ({
-        ...item,
-        psicologo_detalles: Array.isArray(item.psicologo_detalles) 
-          ? item.psicologo_detalles[0] 
-          : item.psicologo_detalles
-      })) || [];
+      const transformedData = data?.map((item: any) => {
+        const profile = item.profiles;
+        return {
+          ...profile,
+          psicologo_detalles: Array.isArray(profile.psicologo_detalles) 
+            ? profile.psicologo_detalles[0] 
+            : profile.psicologo_detalles
+        };
+      }) || [];
       setPsychologists(transformedData);
     }
     setLoading(false);
