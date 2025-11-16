@@ -9,6 +9,31 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// HTML escape function to prevent injection attacks
+function escapeHtml(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// Input validation
+function validateAppointmentData(data: any): boolean {
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  const timeRegex = /^\d{2}:\d{2}$/;
+  
+  return (
+    data.fecha && dateRegex.test(data.fecha) &&
+    data.hora && timeRegex.test(data.hora) &&
+    data.servicio && typeof data.servicio === 'string' && data.servicio.length <= 200 &&
+    data.pacienteNombre && typeof data.pacienteNombre === 'string' && data.pacienteNombre.length <= 100 &&
+    data.psicologoNombre && typeof data.psicologoNombre === 'string' && data.psicologoNombre.length <= 100
+  );
+}
+
 interface AppointmentNotificationRequest {
   appointmentId: string;
   type: "scheduled" | "changed" | "cancelled";
@@ -42,6 +67,15 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Processing ${type} notification for appointment ${appointmentId}`);
 
+    // Validate input data
+    if (!validateAppointmentData(appointmentDetails)) {
+      console.error("Invalid appointment data format");
+      return new Response(
+        JSON.stringify({ error: "Invalid appointment data format" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
+    }
+
     // Get psychologist email from database if not provided
     let psicologoEmail = providedPsicologoEmail;
     if (!psicologoEmail && psicologoId) {
@@ -70,7 +104,12 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { fecha, hora, servicio, pacienteNombre, psicologoNombre } = appointmentDetails;
+    // Escape all user-supplied data to prevent HTML injection
+    const fecha = escapeHtml(appointmentDetails.fecha);
+    const hora = escapeHtml(appointmentDetails.hora);
+    const servicio = escapeHtml(appointmentDetails.servicio);
+    const pacienteNombre = escapeHtml(appointmentDetails.pacienteNombre);
+    const psicologoNombre = escapeHtml(appointmentDetails.psicologoNombre);
 
     // Email content based on notification type
     let subjectPaciente = "";
