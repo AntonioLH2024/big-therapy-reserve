@@ -31,6 +31,42 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Authenticate the user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error("Missing Authorization header");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized - Missing auth token" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: authHeader },
+        },
+      }
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error("Authentication failed:", authError);
+      return new Response(
+        JSON.stringify({ error: "Unauthorized - Invalid token" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     const { 
       appointmentId, 
       type, 
@@ -40,17 +76,47 @@ const handler = async (req: Request): Promise<Response> => {
       appointmentDetails 
     }: AppointmentNotificationRequest = await req.json();
 
-    console.log(`Processing ${type} notification for appointment ${appointmentId}`);
+    console.log(`Processing ${type} notification for appointment ${appointmentId} by user ${user.id}`);
+
+    // Verify appointment ownership - user must be either the patient or psychologist
+    const { data: appointment, error: appointmentError } = await supabase
+      .from('citas')
+      .select('paciente_id, psicologo_id')
+      .eq('id', appointmentId)
+      .single();
+
+    if (appointmentError || !appointment) {
+      console.error("Appointment not found:", appointmentError);
+      return new Response(
+        JSON.stringify({ error: "Appointment not found" }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Check if authenticated user is involved in this appointment
+    if (appointment.paciente_id !== user.id && appointment.psicologo_id !== user.id) {
+      console.error(`User ${user.id} not authorized for appointment ${appointmentId}`);
+      return new Response(
+        JSON.stringify({ error: "Forbidden - You are not authorized to send notifications for this appointment" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
 
     // Get psychologist email from database if not provided
     let psicologoEmail = providedPsicologoEmail;
     if (!psicologoEmail && psicologoId) {
-      const supabase = createClient(
+      const serviceSupabase = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       );
 
-      const { data: userData, error } = await supabase.auth.admin.getUserById(psicologoId);
+      const { data: userData, error } = await serviceSupabase.auth.admin.getUserById(psicologoId);
       
       if (error) {
         console.error("Error fetching psychologist email:", error);
