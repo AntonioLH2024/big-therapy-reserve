@@ -160,6 +160,31 @@ export function BillingManager() {
     }
   };
 
+  const handleUpdateStatus = async (invoiceId: string, newStatus: "pendiente" | "pagada" | "cancelada") => {
+    try {
+      const { error } = await supabase
+        .from("facturas")
+        .update({ estado: newStatus })
+        .eq("id", invoiceId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Estado actualizado",
+        description: "El estado de la factura se ha actualizado correctamente",
+      });
+
+      fetchInvoices();
+    } catch (error) {
+      console.error("Error updating invoice status:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado de la factura",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getEstadoBadge = (estado: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive"> = {
       pendiente: "default",
@@ -303,7 +328,23 @@ export function BillingManager() {
                     <TableCell>
                       {format(new Date(invoice.fecha_emision), "dd/MM/yyyy", { locale: es })}
                     </TableCell>
-                    <TableCell>{getEstadoBadge(invoice.estado)}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={invoice.estado}
+                        onValueChange={(value) =>
+                          handleUpdateStatus(invoice.id, value as "pendiente" | "pagada" | "cancelada")
+                        }
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pendiente">Pendiente</SelectItem>
+                          <SelectItem value="pagada">Pagada</SelectItem>
+                          <SelectItem value="cancelada">Cancelada</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
                     <TableCell>
                       <Dialog>
                         <DialogTrigger asChild>
