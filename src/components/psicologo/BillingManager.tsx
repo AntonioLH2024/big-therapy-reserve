@@ -13,7 +13,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Plus, Eye } from "lucide-react";
+import { Plus, Eye, Download } from "lucide-react";
+import { jsPDF } from "jspdf";
 
 interface Invoice {
   id: string;
@@ -37,11 +38,18 @@ interface Patient {
   apellidos: string;
 }
 
+interface PsychologistInfo {
+  nombre: string;
+  apellidos: string;
+  telefono: string;
+}
+
 export function BillingManager() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [psychologistInfo, setPsychologistInfo] = useState<PsychologistInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -57,8 +65,24 @@ export function BillingManager() {
     if (user) {
       fetchInvoices();
       fetchPatients();
+      fetchPsychologistInfo();
     }
   }, [user]);
+
+  const fetchPsychologistInfo = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("nombre, apellidos, telefono")
+        .eq("id", user?.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (data) setPsychologistInfo(data);
+    } catch (error) {
+      console.error("Error fetching psychologist info:", error);
+    }
+  };
 
   const fetchInvoices = async () => {
     try {
@@ -185,6 +209,93 @@ export function BillingManager() {
     }
   };
 
+  const generatePDF = (invoice: Invoice) => {
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.text("FACTURA", 105, 20, { align: "center" });
+    
+    // Invoice number and date
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Número: ${invoice.numero_factura}`, 20, 35);
+    doc.text(`Fecha de Emisión: ${format(new Date(invoice.fecha_emision), "dd/MM/yyyy", { locale: es })}`, 20, 42);
+    doc.text(`Fecha de Vencimiento: ${format(new Date(invoice.fecha_vencimiento), "dd/MM/yyyy", { locale: es })}`, 20, 49);
+    
+    // Psychologist info
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Datos del Profesional", 20, 65);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    if (psychologistInfo) {
+      doc.text(`Nombre: ${psychologistInfo.nombre} ${psychologistInfo.apellidos}`, 20, 73);
+      doc.text(`Teléfono: ${psychologistInfo.telefono}`, 20, 80);
+    }
+    
+    // Patient info
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Datos del Paciente", 20, 96);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    if (invoice.paciente) {
+      doc.text(`Nombre: ${invoice.paciente.nombre} ${invoice.paciente.apellidos}`, 20, 104);
+    }
+    
+    // Invoice details
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Detalles de la Factura", 20, 120);
+    
+    // Table header
+    doc.setFillColor(240, 240, 240);
+    doc.rect(20, 128, 170, 8, "F");
+    doc.setFontSize(10);
+    doc.text("Concepto", 25, 133);
+    doc.text("Importe", 160, 133);
+    
+    // Table content
+    doc.setFont("helvetica", "normal");
+    doc.text(invoice.concepto, 25, 143);
+    doc.text(`€${invoice.monto.toFixed(2)}`, 160, 143);
+    
+    // Total
+    doc.setFont("helvetica", "bold");
+    doc.line(20, 150, 190, 150);
+    doc.setFontSize(12);
+    doc.text("TOTAL:", 140, 160);
+    doc.text(`€${invoice.monto.toFixed(2)}`, 160, 160);
+    
+    // Status
+    doc.setFontSize(10);
+    doc.text(`Estado: ${invoice.estado.toUpperCase()}`, 20, 175);
+    
+    // Notes
+    if (invoice.notas) {
+      doc.setFont("helvetica", "bold");
+      doc.text("Notas:", 20, 190);
+      doc.setFont("helvetica", "normal");
+      const splitNotes = doc.splitTextToSize(invoice.notas, 170);
+      doc.text(splitNotes, 20, 198);
+    }
+    
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(128, 128, 128);
+    doc.text("Gracias por su confianza", 105, 280, { align: "center" });
+    
+    // Save PDF
+    doc.save(`Factura_${invoice.numero_factura}.pdf`);
+    
+    toast({
+      title: "PDF generado",
+      description: "La factura se ha descargado correctamente",
+    });
+  };
+
   const getEstadoBadge = (estado: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive"> = {
       pendiente: "default",
@@ -306,7 +417,7 @@ export function BillingManager() {
                 <TableHead>Monto</TableHead>
                 <TableHead>Fecha Emisión</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead>Acciones</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -345,23 +456,38 @@ export function BillingManager() {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedInvoice(invoice)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => generatePDF(invoice)}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedInvoice(invoice)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
                             <DialogTitle>Detalles de la Factura</DialogTitle>
                           </DialogHeader>
                           {selectedInvoice && (
                             <div className="space-y-4">
+                              <Button
+                                onClick={() => generatePDF(selectedInvoice)}
+                                className="w-full"
+                              >
+                                <Download className="mr-2 h-4 w-4" />
+                                Descargar PDF
+                              </Button>
                               <div>
                                 <Label>Número de Factura</Label>
                                 <p className="text-foreground">{selectedInvoice.numero_factura}</p>
@@ -406,6 +532,7 @@ export function BillingManager() {
                           )}
                         </DialogContent>
                       </Dialog>
+                    </div>
                     </TableCell>
                   </TableRow>
                 ))
