@@ -4,11 +4,12 @@ import { useAuth } from "@/integrations/supabase/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogOut, Calendar, History, User } from "lucide-react";
+import { LogOut, Calendar, History, User, FileText } from "lucide-react";
 import { NextAppointment } from "@/components/paciente/NextAppointment";
 import { AppointmentHistory } from "@/components/paciente/AppointmentHistory";
 import { ProfileEditor } from "@/components/paciente/ProfileEditor";
 import { AppointmentScheduler } from "@/components/paciente/AppointmentScheduler";
+import { InvoicesView } from "@/components/paciente/InvoicesView";
 
 const PacienteDashboard = () => {
   const navigate = useNavigate();
@@ -75,7 +76,7 @@ const PacienteDashboard = () => {
         </div>
 
         <Tabs defaultValue="proxima" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
             <TabsTrigger value="proxima" className="gap-2">
               <Calendar className="h-4 w-4" />
               Próxima Cita
@@ -83,6 +84,10 @@ const PacienteDashboard = () => {
             <TabsTrigger value="historial" className="gap-2">
               <History className="h-4 w-4" />
               Historial
+            </TabsTrigger>
+            <TabsTrigger value="facturas" className="gap-2">
+              <FileText className="h-4 w-4" />
+              Facturas
             </TabsTrigger>
             <TabsTrigger value="perfil" className="gap-2">
               <User className="h-4 w-4" />
@@ -97,6 +102,10 @@ const PacienteDashboard = () => {
 
           <TabsContent value="historial">
             <AppointmentHistory />
+          </TabsContent>
+
+          <TabsContent value="facturas">
+            <InvoicesView />
           </TabsContent>
 
           <TabsContent value="perfil">
