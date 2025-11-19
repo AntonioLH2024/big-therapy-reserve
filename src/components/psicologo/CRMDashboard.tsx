@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Users, Calendar, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Users, Calendar, CheckCircle, XCircle, Clock, Euro, TrendingUp } from "lucide-react";
 
 interface Stats {
   totalPatients: number;
@@ -12,6 +12,19 @@ interface Stats {
   completedAppointments: number;
   cancelledAppointments: number;
   pendingAppointments: number;
+}
+
+interface BillingStats {
+  totalIncome: number;
+  paidInvoices: number;
+  pendingInvoices: number;
+  cancelledInvoices: number;
+  avgInvoiceAmount: number;
+}
+
+interface MonthlyIncome {
+  mes: string;
+  ingresos: number;
 }
 
 interface AppointmentByDate {
@@ -38,10 +51,19 @@ export const CRMDashboard = () => {
   });
   const [appointmentsByDate, setAppointmentsByDate] = useState<AppointmentByDate[]>([]);
   const [serviceStats, setServiceStats] = useState<ServiceStats[]>([]);
+  const [billingStats, setBillingStats] = useState<BillingStats>({
+    totalIncome: 0,
+    paidInvoices: 0,
+    pendingInvoices: 0,
+    cancelledInvoices: 0,
+    avgInvoiceAmount: 0,
+  });
+  const [monthlyIncome, setMonthlyIncome] = useState<MonthlyIncome[]>([]);
 
   useEffect(() => {
     if (user) {
       fetchStats();
+      fetchBillingStats();
     }
   }, [user]);
 
@@ -103,6 +125,62 @@ export const CRMDashboard = () => {
       console.error("Error fetching stats:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchBillingStats = async () => {
+    try {
+      // Obtener todas las facturas del psicólogo
+      const { data: invoices, error: invoicesError } = await supabase
+        .from("facturas")
+        .select("*")
+        .eq("psicologo_id", user!.id);
+
+      if (invoicesError) throw invoicesError;
+
+      // Calcular estadísticas de facturación
+      const paid = invoices?.filter(i => i.estado === "pagada") || [];
+      const pending = invoices?.filter(i => i.estado === "pendiente") || [];
+      const cancelled = invoices?.filter(i => i.estado === "cancelada") || [];
+      
+      const totalIncome = paid.reduce((sum, inv) => sum + Number(inv.monto), 0);
+      const avgAmount = paid.length > 0 ? totalIncome / paid.length : 0;
+
+      setBillingStats({
+        totalIncome,
+        paidInvoices: paid.length,
+        pendingInvoices: pending.length,
+        cancelledInvoices: cancelled.length,
+        avgInvoiceAmount: avgAmount,
+      });
+
+      // Agrupar ingresos por mes (últimos 12 meses)
+      const twelveMonthsAgo = new Date();
+      twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+
+      const recentPaidInvoices = paid.filter(
+        i => new Date(i.fecha_emision) >= twelveMonthsAgo
+      );
+
+      const monthGroups = recentPaidInvoices.reduce((acc, curr) => {
+        const date = new Date(curr.fecha_emision);
+        const monthYear = date.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
+        acc[monthYear] = (acc[monthYear] || 0) + Number(curr.monto);
+        return acc;
+      }, {} as Record<string, number>);
+
+      setMonthlyIncome(
+        Object.entries(monthGroups)
+          .map(([mes, ingresos]) => ({ mes, ingresos }))
+          .sort((a, b) => {
+            const dateA = new Date(a.mes);
+            const dateB = new Date(b.mes);
+            return dateA.getTime() - dateB.getTime();
+          })
+      );
+
+    } catch (error) {
+      console.error("Error fetching billing stats:", error);
     }
   };
 
@@ -175,6 +253,99 @@ export const CRMDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Estadísticas de Facturación */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
+            <Euro className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">€{billingStats.totalIncome.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">
+              De facturas pagadas
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Facturas Pagadas</CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{billingStats.paidInvoices}</div>
+            <p className="text-xs text-muted-foreground">
+              Completadas
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Facturas Pendientes</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{billingStats.pendingInvoices}</div>
+            <p className="text-xs text-muted-foreground">
+              Por cobrar
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Promedio por Factura</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">€{billingStats.avgInvoiceAmount.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">
+              Valor medio
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Gráfico de Ingresos Mensuales */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Ingresos Mensuales</CardTitle>
+          <CardDescription>Evolución de ingresos en los últimos 12 meses</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={monthlyIncome}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis 
+                dataKey="mes" 
+                stroke="hsl(var(--foreground))"
+                tick={{ fill: 'hsl(var(--foreground))' }}
+              />
+              <YAxis 
+                stroke="hsl(var(--foreground))"
+                tick={{ fill: 'hsl(var(--foreground))' }}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '6px',
+                  color: 'hsl(var(--foreground))'
+                }}
+                formatter={(value: number) => [`€${value.toFixed(2)}`, 'Ingresos']}
+              />
+              <Legend />
+              <Line 
+                type="monotone" 
+                dataKey="ingresos" 
+                stroke="hsl(var(--primary))" 
+                strokeWidth={2}
+                name="Ingresos"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
       {/* Gráficos */}
       <div className="grid gap-6 md:grid-cols-2">
