@@ -65,6 +65,62 @@ export type Database = {
           },
         ]
       }
+      facturas: {
+        Row: {
+          cita_id: string | null
+          concepto: string
+          created_at: string
+          estado: string
+          fecha_emision: string
+          fecha_vencimiento: string
+          id: string
+          monto: number
+          notas: string | null
+          numero_factura: string
+          paciente_id: string
+          psicologo_id: string
+          updated_at: string
+        }
+        Insert: {
+          cita_id?: string | null
+          concepto: string
+          created_at?: string
+          estado?: string
+          fecha_emision?: string
+          fecha_vencimiento: string
+          id?: string
+          monto: number
+          notas?: string | null
+          numero_factura: string
+          paciente_id: string
+          psicologo_id: string
+          updated_at?: string
+        }
+        Update: {
+          cita_id?: string | null
+          concepto?: string
+          created_at?: string
+          estado?: string
+          fecha_emision?: string
+          fecha_vencimiento?: string
+          id?: string
+          monto?: number
+          notas?: string | null
+          numero_factura?: string
+          paciente_id?: string
+          psicologo_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facturas_cita_id_fkey"
+            columns: ["cita_id"]
+            isOneToOne: false
+            referencedRelation: "citas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       login_attempts: {
         Row: {
           attempt_time: string
@@ -221,6 +277,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_invoice_number: { Args: never; Returns: string }
       get_unblock_time: { Args: { user_email: string }; Returns: string }
       has_role: {
         Args: {

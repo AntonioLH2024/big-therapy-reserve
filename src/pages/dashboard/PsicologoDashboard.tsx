@@ -10,6 +10,7 @@ import { ScheduleConfig } from "@/components/psicologo/ScheduleConfig";
 import { ProfileEditor } from "@/components/psicologo/ProfileEditor";
 import { CalendarView } from "@/components/psicologo/CalendarView";
 import { CRMDashboard } from "@/components/psicologo/CRMDashboard";
+import { BillingManager } from "@/components/psicologo/BillingManager";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { PsychologistSidebar } from "@/components/psicologo/PsychologistSidebar";
 
@@ -58,6 +59,8 @@ const PsicologoDashboard = () => {
         return <CalendarView />;
       case "patients":
         return <PatientsManager />;
+      case "billing":
+        return <BillingManager />;
       case "schedule":
         return <ScheduleConfig />;
       case "profile":
