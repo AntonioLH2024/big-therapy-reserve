@@ -1,4 +1,4 @@
-import { BarChart3, Calendar, Users, Clock, User, CalendarDays } from "lucide-react";
+import { BarChart3, Calendar, Users, Clock, User, CalendarDays, FileText } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -18,6 +18,7 @@ const menuItems = [
   { title: "Citas", url: "/dashboard/psicologo?tab=appointments", icon: Calendar },
   { title: "Calendario", url: "/dashboard/psicologo?tab=calendar", icon: CalendarDays },
   { title: "Pacientes", url: "/dashboard/psicologo?tab=patients", icon: Users },
+  { title: "Facturación", url: "/dashboard/psicologo?tab=billing", icon: FileText },
   { title: "Horarios", url: "/dashboard/psicologo?tab=schedule", icon: Clock },
   { title: "Perfil", url: "/dashboard/psicologo?tab=profile", icon: User },
 ];
