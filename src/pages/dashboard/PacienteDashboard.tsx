@@ -1,20 +1,25 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/integrations/supabase/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogOut, Calendar, History, User, FileText } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import { NextAppointment } from "@/components/paciente/NextAppointment";
 import { AppointmentHistory } from "@/components/paciente/AppointmentHistory";
 import { ProfileEditor } from "@/components/paciente/ProfileEditor";
 import { AppointmentScheduler } from "@/components/paciente/AppointmentScheduler";
 import { InvoicesView } from "@/components/paciente/InvoicesView";
+import { PatientSidebar } from "@/components/paciente/PatientSidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 const PacienteDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, userRole, signOut, loading } = useAuth();
   const [userName, setUserName] = useState<string>("");
+
+  const searchParams = new URLSearchParams(location.search);
+  const currentTab = searchParams.get("tab") || "proxima";
 
   useEffect(() => {
     if (!loading && (!user || userRole !== "paciente")) {
@@ -46,74 +51,66 @@ const PacienteDashboard = () => {
     </div>;
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-primary cursor-pointer" onClick={() => navigate("/")}>
-            Big Citas
-          </h1>
-          <div className="flex items-center gap-4">
-            <div className="flex flex-col items-end">
-              <span className="text-foreground font-medium">{userName}</span>
-              <span className="text-sm text-muted-foreground">Mi Panel</span>
-            </div>
-            <Button variant="outline" onClick={signOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Cerrar Sesión
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-foreground mb-2">Mi Panel</h2>
-          {userName && (
-            <p className="text-lg font-medium text-foreground mb-1">{userName}</p>
-          )}
-          <p className="text-muted-foreground">Gestiona tus citas y perfil</p>
-        </div>
-
-        <Tabs defaultValue="proxima" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
-            <TabsTrigger value="proxima" className="gap-2">
-              <Calendar className="h-4 w-4" />
-              Próxima Cita
-            </TabsTrigger>
-            <TabsTrigger value="historial" className="gap-2">
-              <History className="h-4 w-4" />
-              Historial
-            </TabsTrigger>
-            <TabsTrigger value="facturas" className="gap-2">
-              <FileText className="h-4 w-4" />
-              Facturas
-            </TabsTrigger>
-            <TabsTrigger value="perfil" className="gap-2">
-              <User className="h-4 w-4" />
-              Mi Perfil
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="proxima" className="space-y-6">
+  const renderContent = () => {
+    switch (currentTab) {
+      case "historial":
+        return <AppointmentHistory />;
+      case "facturas":
+        return <InvoicesView />;
+      case "perfil":
+        return <ProfileEditor />;
+      case "proxima":
+      default:
+        return (
+          <div className="space-y-6">
             <NextAppointment />
             <AppointmentScheduler />
-          </TabsContent>
+          </div>
+        );
+    }
+  };
 
-          <TabsContent value="historial">
-            <AppointmentHistory />
-          </TabsContent>
+  return (
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-background">
+        <PatientSidebar />
 
-          <TabsContent value="facturas">
-            <InvoicesView />
-          </TabsContent>
+        <div className="flex-1 flex flex-col">
+          <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border">
+            <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <SidebarTrigger />
+                <h1 className="text-2xl font-bold text-primary cursor-pointer" onClick={() => navigate("/")}>
+                  Big Citas
+                </h1>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex flex-col items-end">
+                  <span className="text-foreground font-medium">{userName}</span>
+                  <span className="text-sm text-muted-foreground">Mi Panel</span>
+                </div>
+                <Button variant="outline" onClick={signOut}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Cerrar Sesión
+                </Button>
+              </div>
+            </div>
+          </header>
 
-          <TabsContent value="perfil">
-            <ProfileEditor />
-          </TabsContent>
-        </Tabs>
-      </main>
-    </div>
+          <main className="flex-1 container mx-auto px-4 py-8">
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-foreground mb-2">Mi Panel</h2>
+              {userName && (
+                <p className="text-lg font-medium text-foreground mb-1">{userName}</p>
+              )}
+              <p className="text-muted-foreground">Gestiona tus citas y perfil</p>
+            </div>
+
+            {renderContent()}
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
   );
 };
 
