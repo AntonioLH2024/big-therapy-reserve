@@ -65,50 +65,194 @@ export type Database = {
           },
         ]
       }
+      facturacion_config: {
+        Row: {
+          ciudad: string
+          codigo_postal: string
+          color_primario: string | null
+          color_secundario: string | null
+          created_at: string | null
+          direccion: string
+          email: string | null
+          exento_iva: boolean | null
+          footer_text: string | null
+          id: string
+          irpf_por_defecto: number | null
+          iva_por_defecto: number | null
+          logo_url: string | null
+          nif_cif: string
+          provincia: string
+          proximo_numero: number | null
+          psicologo_id: string
+          razon_social: string
+          serie_factura: string | null
+          telefono: string | null
+          texto_exencion_iva: string | null
+          updated_at: string | null
+          web: string | null
+        }
+        Insert: {
+          ciudad: string
+          codigo_postal: string
+          color_primario?: string | null
+          color_secundario?: string | null
+          created_at?: string | null
+          direccion: string
+          email?: string | null
+          exento_iva?: boolean | null
+          footer_text?: string | null
+          id?: string
+          irpf_por_defecto?: number | null
+          iva_por_defecto?: number | null
+          logo_url?: string | null
+          nif_cif: string
+          provincia: string
+          proximo_numero?: number | null
+          psicologo_id: string
+          razon_social: string
+          serie_factura?: string | null
+          telefono?: string | null
+          texto_exencion_iva?: string | null
+          updated_at?: string | null
+          web?: string | null
+        }
+        Update: {
+          ciudad?: string
+          codigo_postal?: string
+          color_primario?: string | null
+          color_secundario?: string | null
+          created_at?: string | null
+          direccion?: string
+          email?: string | null
+          exento_iva?: boolean | null
+          footer_text?: string | null
+          id?: string
+          irpf_por_defecto?: number | null
+          iva_por_defecto?: number | null
+          logo_url?: string | null
+          nif_cif?: string
+          provincia?: string
+          proximo_numero?: number | null
+          psicologo_id?: string
+          razon_social?: string
+          serie_factura?: string | null
+          telefono?: string | null
+          texto_exencion_iva?: string | null
+          updated_at?: string | null
+          web?: string | null
+        }
+        Relationships: []
+      }
       facturas: {
         Row: {
+          base_imponible: number | null
           cita_id: string | null
           concepto: string
           created_at: string
+          emisor_ciudad: string | null
+          emisor_codigo_postal: string | null
+          emisor_direccion: string | null
+          emisor_nif: string | null
+          emisor_provincia: string | null
+          emisor_razon_social: string | null
           estado: string
+          exento_iva: boolean | null
           fecha_emision: string
+          fecha_servicio: string | null
           fecha_vencimiento: string
           id: string
+          irpf_importe: number | null
+          irpf_porcentaje: number | null
+          iva_importe: number | null
+          iva_porcentaje: number | null
           monto: number
           notas: string | null
           numero_factura: string
           paciente_id: string
           psicologo_id: string
+          receptor_ciudad: string | null
+          receptor_codigo_postal: string | null
+          receptor_direccion: string | null
+          receptor_nif: string | null
+          receptor_provincia: string | null
+          receptor_razon_social: string | null
+          serie: string | null
+          texto_exencion: string | null
+          total: number | null
           updated_at: string
         }
         Insert: {
+          base_imponible?: number | null
           cita_id?: string | null
           concepto: string
           created_at?: string
+          emisor_ciudad?: string | null
+          emisor_codigo_postal?: string | null
+          emisor_direccion?: string | null
+          emisor_nif?: string | null
+          emisor_provincia?: string | null
+          emisor_razon_social?: string | null
           estado?: string
+          exento_iva?: boolean | null
           fecha_emision?: string
+          fecha_servicio?: string | null
           fecha_vencimiento: string
           id?: string
+          irpf_importe?: number | null
+          irpf_porcentaje?: number | null
+          iva_importe?: number | null
+          iva_porcentaje?: number | null
           monto: number
           notas?: string | null
           numero_factura: string
           paciente_id: string
           psicologo_id: string
+          receptor_ciudad?: string | null
+          receptor_codigo_postal?: string | null
+          receptor_direccion?: string | null
+          receptor_nif?: string | null
+          receptor_provincia?: string | null
+          receptor_razon_social?: string | null
+          serie?: string | null
+          texto_exencion?: string | null
+          total?: number | null
           updated_at?: string
         }
         Update: {
+          base_imponible?: number | null
           cita_id?: string | null
           concepto?: string
           created_at?: string
+          emisor_ciudad?: string | null
+          emisor_codigo_postal?: string | null
+          emisor_direccion?: string | null
+          emisor_nif?: string | null
+          emisor_provincia?: string | null
+          emisor_razon_social?: string | null
           estado?: string
+          exento_iva?: boolean | null
           fecha_emision?: string
+          fecha_servicio?: string | null
           fecha_vencimiento?: string
           id?: string
+          irpf_importe?: number | null
+          irpf_porcentaje?: number | null
+          iva_importe?: number | null
+          iva_porcentaje?: number | null
           monto?: number
           notas?: string | null
           numero_factura?: string
           paciente_id?: string
           psicologo_id?: string
+          receptor_ciudad?: string | null
+          receptor_codigo_postal?: string | null
+          receptor_direccion?: string | null
+          receptor_nif?: string | null
+          receptor_provincia?: string | null
+          receptor_razon_social?: string | null
+          serie?: string | null
+          texto_exencion?: string | null
+          total?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -117,6 +261,47 @@ export type Database = {
             columns: ["cita_id"]
             isOneToOne: false
             referencedRelation: "citas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      facturas_lineas: {
+        Row: {
+          cantidad: number | null
+          created_at: string | null
+          descripcion: string
+          factura_id: string
+          id: string
+          orden: number | null
+          precio_unitario: number
+          subtotal: number
+        }
+        Insert: {
+          cantidad?: number | null
+          created_at?: string | null
+          descripcion: string
+          factura_id: string
+          id?: string
+          orden?: number | null
+          precio_unitario: number
+          subtotal: number
+        }
+        Update: {
+          cantidad?: number | null
+          created_at?: string | null
+          descripcion?: string
+          factura_id?: string
+          id?: string
+          orden?: number | null
+          precio_unitario?: number
+          subtotal?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facturas_lineas_factura_id_fkey"
+            columns: ["factura_id"]
+            isOneToOne: false
+            referencedRelation: "facturas"
             referencedColumns: ["id"]
           },
         ]
@@ -151,25 +336,40 @@ export type Database = {
       profiles: {
         Row: {
           apellidos: string
+          ciudad: string | null
+          codigo_postal: string | null
           created_at: string | null
+          direccion: string | null
           id: string
+          nif_dni: string | null
           nombre: string
+          provincia: string | null
           telefono: string | null
           updated_at: string | null
         }
         Insert: {
           apellidos: string
+          ciudad?: string | null
+          codigo_postal?: string | null
           created_at?: string | null
+          direccion?: string | null
           id: string
+          nif_dni?: string | null
           nombre: string
+          provincia?: string | null
           telefono?: string | null
           updated_at?: string | null
         }
         Update: {
           apellidos?: string
+          ciudad?: string | null
+          codigo_postal?: string | null
           created_at?: string | null
+          direccion?: string | null
           id?: string
+          nif_dni?: string | null
           nombre?: string
+          provincia?: string | null
           telefono?: string | null
           updated_at?: string | null
         }
@@ -178,28 +378,46 @@ export type Database = {
       psicologo_detalles: {
         Row: {
           biografia: string | null
+          ciudad: string | null
+          codigo_postal: string | null
           created_at: string | null
+          direccion: string | null
           especialidad: string[] | null
           foto_url: string | null
           id: string
+          nif_cif: string | null
+          provincia: string | null
+          razon_social: string | null
           servicios: string[] | null
           updated_at: string | null
         }
         Insert: {
           biografia?: string | null
+          ciudad?: string | null
+          codigo_postal?: string | null
           created_at?: string | null
+          direccion?: string | null
           especialidad?: string[] | null
           foto_url?: string | null
           id: string
+          nif_cif?: string | null
+          provincia?: string | null
+          razon_social?: string | null
           servicios?: string[] | null
           updated_at?: string | null
         }
         Update: {
           biografia?: string | null
+          ciudad?: string | null
+          codigo_postal?: string | null
           created_at?: string | null
+          direccion?: string | null
           especialidad?: string[] | null
           foto_url?: string | null
           id?: string
+          nif_cif?: string | null
+          provincia?: string | null
+          razon_social?: string | null
           servicios?: string[] | null
           updated_at?: string | null
         }
@@ -278,6 +496,10 @@ export type Database = {
     }
     Functions: {
       generate_invoice_number: { Args: never; Returns: string }
+      generate_invoice_number_with_serie: {
+        Args: { p_psicologo_id: string }
+        Returns: string
+      }
       get_unblock_time: { Args: { user_email: string }; Returns: string }
       has_role: {
         Args: {
