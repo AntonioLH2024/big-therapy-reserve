@@ -111,11 +111,10 @@ export function BillingManager() {
 
   // Filtros
   const [filterNif, setFilterNif] = useState("");
+  const [filterCliente, setFilterCliente] = useState("");
   const [filterEstado, setFilterEstado] = useState<string>("todos");
   const [filterFechaDesde, setFilterFechaDesde] = useState("");
   const [filterFechaHasta, setFilterFechaHasta] = useState("");
-  const [filterMontoMin, setFilterMontoMin] = useState("");
-  const [filterMontoMax, setFilterMontoMax] = useState("");
 
   // Form state
   const [formData, setFormData] = useState({
@@ -457,21 +456,19 @@ export function BillingManager() {
 
   const filteredInvoices = invoices.filter((invoice) => {
     if (filterNif && !invoice.receptor_nif.includes(filterNif.toUpperCase())) return false;
+    if (filterCliente && !invoice.receptor_razon_social.toLowerCase().includes(filterCliente.toLowerCase())) return false;
     if (filterEstado !== "todos" && invoice.estado !== filterEstado) return false;
     if (filterFechaDesde && new Date(invoice.fecha_emision) < new Date(filterFechaDesde)) return false;
     if (filterFechaHasta && new Date(invoice.fecha_emision) > new Date(filterFechaHasta)) return false;
-    if (filterMontoMin && invoice.total < parseFloat(filterMontoMin)) return false;
-    if (filterMontoMax && invoice.total > parseFloat(filterMontoMax)) return false;
     return true;
   });
 
   const clearFilters = () => {
     setFilterNif("");
+    setFilterCliente("");
     setFilterEstado("todos");
     setFilterFechaDesde("");
     setFilterFechaHasta("");
-    setFilterMontoMin("");
-    setFilterMontoMax("");
   };
 
   const totals = calculateTotals();
@@ -769,7 +766,17 @@ export function BillingManager() {
               </Button>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <Label htmlFor="filter-cliente">Cliente</Label>
+                <Input
+                  id="filter-cliente"
+                  placeholder="Buscar por nombre"
+                  value={filterCliente}
+                  onChange={(e) => setFilterCliente(e.target.value)}
+                />
+              </div>
+
               <div>
                 <Label htmlFor="filter-nif">NIF/CIF</Label>
                 <Input
@@ -815,31 +822,6 @@ export function BillingManager() {
                     onChange={(e) => setFilterFechaHasta(e.target.value)}
                   />
                 </div>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="filter-monto-min">Monto Mínimo (€)</Label>
-                <Input
-                  id="filter-monto-min"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={filterMontoMin}
-                  onChange={(e) => setFilterMontoMin(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="filter-monto-max">Monto Máximo (€)</Label>
-                <Input
-                  id="filter-monto-max"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={filterMontoMax}
-                  onChange={(e) => setFilterMontoMax(e.target.value)}
-                />
               </div>
             </div>
           </div>
