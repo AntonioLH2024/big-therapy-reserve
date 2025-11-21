@@ -32,6 +32,8 @@ interface InvoiceData {
   receptor_codigo_postal?: string | null;
   receptor_ciudad?: string | null;
   receptor_provincia?: string | null;
+  receptor_telefono?: string | null;
+  receptor_email?: string | null;
   
   // Líneas de factura
   lineas: InvoiceLine[];
@@ -40,8 +42,6 @@ interface InvoiceData {
   base_imponible: number;
   iva_porcentaje: number;
   iva_importe: number;
-  irpf_porcentaje: number;
-  irpf_importe: number;
   total: number;
   exento_iva: boolean;
   texto_exencion?: string;
@@ -153,6 +153,14 @@ export function generateInvoicePDF(invoice: InvoiceData): jsPDF {
     doc.text(`${invoice.receptor_codigo_postal || ""} ${invoice.receptor_ciudad || ""} ${invoice.receptor_provincia ? `(${invoice.receptor_provincia})` : ""}`.trim(), pageWidth - 15, yPosRight, { align: "right" });
     yPosRight += 5;
   }
+  if (invoice.receptor_telefono) {
+    doc.text(`Tel: ${invoice.receptor_telefono}`, pageWidth - 15, yPosRight, { align: "right" });
+    yPosRight += 5;
+  }
+  if (invoice.receptor_email) {
+    doc.text(`Email: ${invoice.receptor_email}`, pageWidth - 15, yPosRight, { align: "right" });
+    yPosRight += 5;
+  }
   
   // Fechas
   yPos = Math.max(yPos, yPosRight) + 10;
@@ -223,13 +231,6 @@ export function generateInvoicePDF(invoice: InvoiceData): jsPDF {
   } else if (invoice.iva_porcentaje > 0) {
     doc.text(`IVA (${invoice.iva_porcentaje}%):`, totalsX, yPos);
     doc.text(`${invoice.iva_importe.toFixed(2)} €`, pageWidth - 20, yPos, { align: "right" });
-    yPos += 6;
-  }
-  
-  // IRPF
-  if (invoice.irpf_porcentaje > 0) {
-    doc.text(`IRPF (${invoice.irpf_porcentaje}%):`, totalsX, yPos);
-    doc.text(`-${invoice.irpf_importe.toFixed(2)} €`, pageWidth - 20, yPos, { align: "right" });
     yPos += 6;
   }
   

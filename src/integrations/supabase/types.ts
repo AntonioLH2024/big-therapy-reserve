@@ -173,9 +173,11 @@ export type Database = {
           receptor_ciudad: string | null
           receptor_codigo_postal: string | null
           receptor_direccion: string | null
+          receptor_email: string | null
           receptor_nif: string | null
           receptor_provincia: string | null
           receptor_razon_social: string | null
+          receptor_telefono: string | null
           serie: string | null
           texto_exencion: string | null
           total: number | null
@@ -210,9 +212,11 @@ export type Database = {
           receptor_ciudad?: string | null
           receptor_codigo_postal?: string | null
           receptor_direccion?: string | null
+          receptor_email?: string | null
           receptor_nif?: string | null
           receptor_provincia?: string | null
           receptor_razon_social?: string | null
+          receptor_telefono?: string | null
           serie?: string | null
           texto_exencion?: string | null
           total?: number | null
@@ -247,9 +251,11 @@ export type Database = {
           receptor_ciudad?: string | null
           receptor_codigo_postal?: string | null
           receptor_direccion?: string | null
+          receptor_email?: string | null
           receptor_nif?: string | null
           receptor_provincia?: string | null
           receptor_razon_social?: string | null
+          receptor_telefono?: string | null
           serie?: string | null
           texto_exencion?: string | null
           total?: number | null
