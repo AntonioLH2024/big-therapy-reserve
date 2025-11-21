@@ -8,6 +8,7 @@ import { Users, Calendar, UserCog, LogOut, BarChart3 } from "lucide-react";
 import { PsychologistsManager } from "@/components/admin/PsychologistsManager";
 import { PatientsManager } from "@/components/admin/PatientsManager";
 import { AppointmentsManager } from "@/components/admin/AppointmentsManager";
+import { PsychologistStats } from "@/components/admin/PsychologistStats";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 
@@ -76,16 +77,7 @@ const AdminDashboard = () => {
       case "appointments":
         return <AppointmentsManager />;
       case "stats":
-        return (
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-foreground">Estadísticas y Métricas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Próximamente...</p>
-            </CardContent>
-          </Card>
-        );
+        return <PsychologistStats />;
       default:
         return <PsychologistsManager />;
     }
