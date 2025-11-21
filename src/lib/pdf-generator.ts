@@ -28,10 +28,10 @@ interface InvoiceData {
   // Receptor
   receptor_razon_social: string;
   receptor_nif: string;
-  receptor_direccion: string;
-  receptor_codigo_postal: string;
-  receptor_ciudad: string;
-  receptor_provincia: string;
+  receptor_direccion?: string | null;
+  receptor_codigo_postal?: string | null;
+  receptor_ciudad?: string | null;
+  receptor_provincia?: string | null;
   
   // Líneas de factura
   lineas: InvoiceLine[];
@@ -104,15 +104,15 @@ export function generateInvoicePDF(invoice: InvoiceData): jsPDF {
   yPos += 7;
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text(invoice.emisor_razon_social, 15, yPos);
+  doc.text(invoice.emisor_razon_social || "", 15, yPos);
   yPos += 5;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text(`NIF: ${invoice.emisor_nif}`, 15, yPos);
+  doc.text(`NIF: ${invoice.emisor_nif || ""}`, 15, yPos);
   yPos += 5;
-  doc.text(invoice.emisor_direccion, 15, yPos);
+  doc.text(invoice.emisor_direccion || "", 15, yPos);
   yPos += 5;
-  doc.text(`${invoice.emisor_codigo_postal} ${invoice.emisor_ciudad} (${invoice.emisor_provincia})`, 15, yPos);
+  doc.text(`${invoice.emisor_codigo_postal || ""} ${invoice.emisor_ciudad || ""} (${invoice.emisor_provincia || ""})`, 15, yPos);
   
   if (invoice.emisor_telefono) {
     yPos += 5;
@@ -139,18 +139,23 @@ export function generateInvoicePDF(invoice: InvoiceData): jsPDF {
   yPosRight += 7;
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text(invoice.receptor_razon_social, pageWidth - 15, yPosRight, { align: "right" });
+  doc.text(invoice.receptor_razon_social || "", pageWidth - 15, yPosRight, { align: "right" });
   yPosRight += 5;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text(`NIF: ${invoice.receptor_nif}`, pageWidth - 15, yPosRight, { align: "right" });
+  doc.text(`NIF: ${invoice.receptor_nif || ""}`, pageWidth - 15, yPosRight, { align: "right" });
   yPosRight += 5;
-  doc.text(invoice.receptor_direccion, pageWidth - 15, yPosRight, { align: "right" });
-  yPosRight += 5;
-  doc.text(`${invoice.receptor_codigo_postal} ${invoice.receptor_ciudad} (${invoice.receptor_provincia})`, pageWidth - 15, yPosRight, { align: "right" });
+  if (invoice.receptor_direccion) {
+    doc.text(invoice.receptor_direccion, pageWidth - 15, yPosRight, { align: "right" });
+    yPosRight += 5;
+  }
+  if (invoice.receptor_codigo_postal || invoice.receptor_ciudad || invoice.receptor_provincia) {
+    doc.text(`${invoice.receptor_codigo_postal || ""} ${invoice.receptor_ciudad || ""} ${invoice.receptor_provincia ? `(${invoice.receptor_provincia})` : ""}`.trim(), pageWidth - 15, yPosRight, { align: "right" });
+    yPosRight += 5;
+  }
   
   // Fechas
-  yPos = Math.max(yPos, yPosRight) + 15;
+  yPos = Math.max(yPos, yPosRight) + 10;
   doc.setFontSize(9);
   doc.text(`Fecha de emisión: ${new Date(invoice.fecha_emision).toLocaleDateString("es-ES")}`, 15, yPos);
   if (invoice.fecha_servicio) {
