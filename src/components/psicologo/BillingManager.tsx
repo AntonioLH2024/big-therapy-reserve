@@ -123,6 +123,12 @@ export function BillingManager() {
     fecha_servicio: "",
     notas: "",
     estado: "borrador" as "borrador" | "enviada" | "pagada" | "cancelada",
+    receptor_razon_social: "",
+    receptor_nif: "",
+    receptor_direccion: "",
+    receptor_codigo_postal: "",
+    receptor_ciudad: "",
+    receptor_provincia: "",
   });
 
   const [lines, setLines] = useState<InvoiceLine[]>([
@@ -240,35 +246,26 @@ export function BillingManager() {
         return;
       }
 
-      // Obtener datos del paciente
-      const selectedPatient = patients.find((p) => p.id === formData.paciente_id);
-      if (!selectedPatient) {
-        toast.error("Seleccione un paciente");
+      // Validar campos requeridos
+      if (!formData.paciente_id) {
+        toast.error("Debe seleccionar un paciente");
         return;
       }
 
-      // Validar datos del receptor
-      if (!selectedPatient.nif_dni || !selectedPatient.direccion) {
-        toast.error("El paciente debe tener NIF y dirección completa en su perfil");
+      if (!formData.receptor_razon_social || !formData.receptor_nif) {
+        toast.error("Debe completar los datos del receptor (nombre y NIF/CIF)");
         return;
       }
 
-      // Validar con Zod
-      const validationData = {
-        receptor_razon_social: `${selectedPatient.nombre} ${selectedPatient.apellidos}`,
-        receptor_nif: selectedPatient.nif_dni,
-        receptor_direccion: selectedPatient.direccion,
-        receptor_codigo_postal: selectedPatient.codigo_postal || "",
-        receptor_ciudad: selectedPatient.ciudad || "",
-        receptor_provincia: selectedPatient.provincia || "",
-        fecha_servicio: formData.fecha_servicio,
-        notas: formData.notas,
-        lineas: lines,
-      };
+      // Validar NIF/CIF
+      if (!validateSpanishTaxId(formData.receptor_nif)) {
+        toast.error("El NIF/CIF del receptor no es válido");
+        return;
+      }
 
-      const validation = invoiceSchema.safeParse(validationData);
-      if (!validation.success) {
-        toast.error(validation.error.errors[0].message);
+      // Validar líneas
+      if (lines.length === 0 || lines.some(l => !l.descripcion || l.cantidad <= 0)) {
+        toast.error("Debe añadir al menos una línea con descripción y cantidad válida");
         return;
       }
 
@@ -298,12 +295,12 @@ export function BillingManager() {
         emisor_ciudad: config.ciudad,
         emisor_provincia: config.provincia,
         // Receptor
-        receptor_razon_social: validationData.receptor_razon_social,
-        receptor_nif: validationData.receptor_nif,
-        receptor_direccion: validationData.receptor_direccion,
-        receptor_codigo_postal: validationData.receptor_codigo_postal,
-        receptor_ciudad: validationData.receptor_ciudad,
-        receptor_provincia: validationData.receptor_provincia,
+        receptor_razon_social: formData.receptor_razon_social,
+        receptor_nif: formData.receptor_nif,
+        receptor_direccion: formData.receptor_direccion || null,
+        receptor_codigo_postal: formData.receptor_codigo_postal || null,
+        receptor_ciudad: formData.receptor_ciudad || null,
+        receptor_provincia: formData.receptor_provincia || null,
         // Totales
         ...totals,
         exento_iva: config.exento_iva,
@@ -350,6 +347,12 @@ export function BillingManager() {
       fecha_servicio: "",
       notas: "",
       estado: "borrador",
+      receptor_razon_social: "",
+      receptor_nif: "",
+      receptor_direccion: "",
+      receptor_codigo_postal: "",
+      receptor_ciudad: "",
+      receptor_provincia: "",
     });
     setLines([{ descripcion: "", cantidad: 1, precio_unitario: 0, subtotal: 0 }]);
   };
@@ -501,7 +504,22 @@ export function BillingManager() {
                 {/* Selección de paciente */}
                 <div className="space-y-2">
                   <Label htmlFor="paciente">Cliente / Paciente *</Label>
-                  <Select value={formData.paciente_id} onValueChange={(value) => setFormData({ ...formData, paciente_id: value })}>
+                  <Select 
+                    value={formData.paciente_id} 
+                    onValueChange={(value) => {
+                      const patient = patients.find(p => p.id === value);
+                      setFormData({ 
+                        ...formData, 
+                        paciente_id: value,
+                        receptor_razon_social: patient ? `${patient.nombre} ${patient.apellidos}` : "",
+                        receptor_nif: patient?.nif_dni || "",
+                        receptor_direccion: patient?.direccion || "",
+                        receptor_codigo_postal: patient?.codigo_postal || "",
+                        receptor_ciudad: patient?.ciudad || "",
+                        receptor_provincia: patient?.provincia || "",
+                      });
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccione un paciente" />
                     </SelectTrigger>
@@ -514,6 +532,74 @@ export function BillingManager() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Datos del Receptor */}
+                <div className="space-y-4 border-t pt-4">
+                  <h3 className="text-lg font-semibold">Datos del Receptor</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="receptor_razon_social">Nombre Completo / Razón Social *</Label>
+                      <Input
+                        id="receptor_razon_social"
+                        value={formData.receptor_razon_social}
+                        onChange={(e) => setFormData({ ...formData, receptor_razon_social: e.target.value })}
+                        placeholder="Nombre completo o razón social"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="receptor_nif">NIF/CIF *</Label>
+                      <Input
+                        id="receptor_nif"
+                        value={formData.receptor_nif}
+                        onChange={(e) => setFormData({ ...formData, receptor_nif: e.target.value.toUpperCase() })}
+                        placeholder="12345678A o X1234567A"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2 col-span-2">
+                      <Label htmlFor="receptor_direccion">Dirección</Label>
+                      <Input
+                        id="receptor_direccion"
+                        value={formData.receptor_direccion}
+                        onChange={(e) => setFormData({ ...formData, receptor_direccion: e.target.value })}
+                        placeholder="Calle, número, piso..."
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="receptor_codigo_postal">Código Postal</Label>
+                      <Input
+                        id="receptor_codigo_postal"
+                        value={formData.receptor_codigo_postal}
+                        onChange={(e) => setFormData({ ...formData, receptor_codigo_postal: e.target.value })}
+                        placeholder="28001"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="receptor_ciudad">Ciudad</Label>
+                      <Input
+                        id="receptor_ciudad"
+                        value={formData.receptor_ciudad}
+                        onChange={(e) => setFormData({ ...formData, receptor_ciudad: e.target.value })}
+                        placeholder="Madrid"
+                      />
+                    </div>
+
+                    <div className="space-y-2 col-span-2">
+                      <Label htmlFor="receptor_provincia">Provincia</Label>
+                      <Input
+                        id="receptor_provincia"
+                        value={formData.receptor_provincia}
+                        onChange={(e) => setFormData({ ...formData, receptor_provincia: e.target.value })}
+                        placeholder="Madrid"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Fecha del servicio */}
