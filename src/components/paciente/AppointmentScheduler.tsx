@@ -352,12 +352,13 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled,
                     return (
                       <Button
                         key={slot}
-                        variant={isSelected ? "default" : "outline"}
-                        onClick={() => setSelectedTime(slot)}
+                        variant="outline"
+                        onClick={() => !isOccupied ? setSelectedTime(slot) : undefined}
                         disabled={isOccupied}
                         className={cn(
                           "w-full",
-                          isOccupied && "bg-red-500 text-white border-red-500 opacity-60 cursor-not-allowed"
+                          isOccupied && "bg-muted text-muted-foreground opacity-50 cursor-not-allowed line-through",
+                          isSelected && !isOccupied && "bg-red-500 text-white border-red-500 hover:bg-red-600"
                         )}
                       >
                         <Clock className="mr-2 h-4 w-4" />
