@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,29 +35,27 @@ export const PsychologistBrowser = ({ open, onOpenChange }: PsychologistBrowserP
     queryKey: ["psychologists-with-details"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("user_roles")
+        .from("profiles")
         .select(`
-          user_id,
-          profiles!inner(
-            id, 
-            nombre, 
-            apellidos,
-            psicologo_detalles(
-              biografia,
-              especialidad,
-              foto_url
-            )
-          )
+          id,
+          nombre,
+          apellidos,
+          psicologo_detalles(
+            biografia,
+            especialidad,
+            foto_url
+          ),
+          user_roles!inner(role)
         `)
-        .eq("role", "psicologo");
+        .eq("user_roles.role", "psicologo");
 
       if (error) throw error;
 
       return (data || []).map((item: any) => ({
-        id: item.profiles.id,
-        nombre: item.profiles.nombre,
-        apellidos: item.profiles.apellidos,
-        detalles: item.profiles.psicologo_detalles?.[0] || null,
+        id: item.id,
+        nombre: item.nombre,
+        apellidos: item.apellidos,
+        detalles: item.psicologo_detalles?.[0] || null,
       })) as Psychologist[];
     },
     enabled: open,
@@ -99,6 +97,9 @@ export const PsychologistBrowser = ({ open, onOpenChange }: PsychologistBrowserP
                 ← Volver a psicólogos
               </Button>
             </DialogTitle>
+            <DialogDescription>
+              Selecciona fecha y hora para tu cita
+            </DialogDescription>
           </DialogHeader>
           <AppointmentScheduler 
             embedded 
@@ -115,6 +116,9 @@ export const PsychologistBrowser = ({ open, onOpenChange }: PsychologistBrowserP
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Buscar Psicólogo</DialogTitle>
+          <DialogDescription>
+            Explora nuestro equipo de psicólogos y agenda una cita con el profesional que mejor se adapte a tus necesidades.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
