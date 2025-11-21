@@ -845,9 +845,9 @@ export function BillingManager() {
                   <TableCell className="font-medium">{invoice.numero_factura}</TableCell>
                   <TableCell>{new Date(invoice.fecha_emision).toLocaleDateString("es-ES")}</TableCell>
                   <TableCell>
-                    {invoice.paciente?.nombre} {invoice.paciente?.apellidos}
+                    {invoice.receptor_razon_social || `${invoice.paciente?.nombre || ""} ${invoice.paciente?.apellidos || ""}`.trim() || "Sin nombre"}
                   </TableCell>
-                  <TableCell>{invoice.receptor_nif}</TableCell>
+                  <TableCell>{invoice.receptor_nif || "-"}</TableCell>
                   <TableCell>{invoice.total.toFixed(2)} €</TableCell>
                   <TableCell>
                     <Select
