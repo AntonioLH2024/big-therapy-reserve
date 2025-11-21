@@ -7,7 +7,7 @@ import { LogOut, Menu } from "lucide-react";
 import { NextAppointment } from "@/components/paciente/NextAppointment";
 import { AppointmentHistory } from "@/components/paciente/AppointmentHistory";
 import { ProfileEditor } from "@/components/paciente/ProfileEditor";
-import { AppointmentScheduler } from "@/components/paciente/AppointmentScheduler";
+import { PsychologistBrowser } from "@/components/paciente/PsychologistBrowser";
 import { InvoicesView } from "@/components/paciente/InvoicesView";
 import { PatientSidebar } from "@/components/paciente/PatientSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -17,6 +17,7 @@ const PacienteDashboard = () => {
   const location = useLocation();
   const { user, userRole, signOut, loading } = useAuth();
   const [userName, setUserName] = useState<string>("");
+  const [showPsychologistBrowser, setShowPsychologistBrowser] = useState(false);
 
   const searchParams = new URLSearchParams(location.search);
   const currentTab = searchParams.get("tab") || "proxima";
@@ -64,7 +65,13 @@ const PacienteDashboard = () => {
         return (
           <div className="space-y-6">
             <NextAppointment />
-            <AppointmentScheduler />
+            <Button 
+              onClick={() => setShowPsychologistBrowser(true)}
+              className="w-full bg-primary hover:bg-primary/90"
+              size="lg"
+            >
+              Buscar Psicólogo
+            </Button>
           </div>
         );
     }
@@ -110,6 +117,11 @@ const PacienteDashboard = () => {
           </main>
         </div>
       </div>
+
+      <PsychologistBrowser 
+        open={showPsychologistBrowser} 
+        onOpenChange={setShowPsychologistBrowser} 
+      />
     </SidebarProvider>
   );
 };
