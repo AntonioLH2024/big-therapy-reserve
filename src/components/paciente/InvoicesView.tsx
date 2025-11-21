@@ -5,28 +5,70 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Eye, Download, FileText } from "lucide-react";
-import { jsPDF } from "jspdf";
+import { generateInvoicePDF } from "@/lib/pdf-generator";
+
+interface InvoiceLine {
+  descripcion: string;
+  cantidad: number;
+  precio_unitario: number;
+  subtotal: number;
+}
 
 interface Invoice {
   id: string;
   numero_factura: string;
+  serie: string;
   monto: number;
   concepto: string;
   fecha_emision: string;
   fecha_vencimiento: string;
-  estado: "pendiente" | "pagada" | "cancelada";
+  fecha_servicio: string | null;
+  estado: string;
   notas: string | null;
-  psicologo?: {
-    nombre: string;
-    apellidos: string;
-    telefono: string;
-  };
+  
+  // Emisor
+  emisor_razon_social: string;
+  emisor_nif: string;
+  emisor_direccion: string;
+  emisor_codigo_postal: string;
+  emisor_ciudad: string;
+  emisor_provincia: string;
+  emisor_telefono?: string;
+  emisor_email?: string;
+  emisor_web?: string;
+  
+  // Receptor
+  receptor_razon_social: string;
+  receptor_nif: string;
+  receptor_direccion?: string | null;
+  receptor_codigo_postal?: string | null;
+  receptor_ciudad?: string | null;
+  receptor_provincia?: string | null;
+  receptor_telefono?: string | null;
+  receptor_email?: string | null;
+  
+  // Importes
+  base_imponible: number;
+  iva_porcentaje: number;
+  iva_importe: number;
+  total: number;
+  exento_iva: boolean;
+  texto_exencion?: string;
+  
+  // Configuración
+  logo_url?: string;
+  color_primario?: string;
+  color_secundario?: string;
+  footer_text?: string;
+  
+  // Líneas
+  lineas?: InvoiceLine[];
 }
 
 export function InvoicesView() {
@@ -44,7 +86,7 @@ export function InvoicesView() {
 
   const fetchInvoices = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: invoicesData, error } = await supabase
         .from("facturas")
         .select("*")
         .eq("paciente_id", user?.id)
@@ -52,21 +94,43 @@ export function InvoicesView() {
 
       if (error) throw error;
 
-      // Fetch psychologist details separately
-      if (data) {
-        const psychologistIds = [...new Set(data.map((f) => f.psicologo_id))];
-        const { data: psychologistsData } = await supabase
-          .from("profiles")
-          .select("id, nombre, apellidos, telefono")
-          .in("id", psychologistIds);
-
-        const invoicesWithPsychologists = data.map((invoice) => ({
-          ...invoice,
-          psicologo: psychologistsData?.find((p) => p.id === invoice.psicologo_id),
-        })) as Invoice[];
-
-        setInvoices(invoicesWithPsychologists);
+      if (!invoicesData || invoicesData.length === 0) {
+        setInvoices([]);
+        return;
       }
+
+      // Fetch invoice lines, billing config, and psychologist details
+      const invoicesWithDetails = await Promise.all(
+        invoicesData.map(async (invoice) => {
+          // Fetch invoice lines
+          const { data: lineasData } = await supabase
+            .from("facturas_lineas")
+            .select("descripcion, cantidad, precio_unitario, subtotal")
+            .eq("factura_id", invoice.id)
+            .order("orden");
+
+          // Fetch billing config
+          const { data: configData } = await supabase
+            .from("facturacion_config")
+            .select("*")
+            .eq("psicologo_id", invoice.psicologo_id)
+            .single();
+
+          return {
+            ...invoice,
+            lineas: lineasData || [],
+            logo_url: configData?.logo_url,
+            color_primario: configData?.color_primario,
+            color_secundario: configData?.color_secundario,
+            footer_text: configData?.footer_text,
+            emisor_telefono: configData?.telefono,
+            emisor_email: configData?.email,
+            emisor_web: configData?.web,
+          } as Invoice;
+        })
+      );
+
+      setInvoices(invoicesWithDetails);
     } catch (error) {
       console.error("Error fetching invoices:", error);
       toast({
@@ -80,89 +144,72 @@ export function InvoicesView() {
   };
 
   const generatePDF = (invoice: Invoice) => {
-    const doc = new jsPDF();
-    
-    // Header
-    doc.setFontSize(20);
-    doc.setFont("helvetica", "bold");
-    doc.text("FACTURA", 105, 20, { align: "center" });
-    
-    // Invoice number and date
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Número: ${invoice.numero_factura}`, 20, 35);
-    doc.text(`Fecha de Emisión: ${format(new Date(invoice.fecha_emision), "dd/MM/yyyy", { locale: es })}`, 20, 42);
-    doc.text(`Fecha de Vencimiento: ${format(new Date(invoice.fecha_vencimiento), "dd/MM/yyyy", { locale: es })}`, 20, 49);
-    
-    // Psychologist info
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Datos del Profesional", 20, 65);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    if (invoice.psicologo) {
-      doc.text(`Nombre: ${invoice.psicologo.nombre} ${invoice.psicologo.apellidos}`, 20, 73);
-      doc.text(`Teléfono: ${invoice.psicologo.telefono}`, 20, 80);
+    try {
+      const doc = generateInvoicePDF({
+        numero_factura: invoice.numero_factura,
+        serie: invoice.serie,
+        fecha_emision: invoice.fecha_emision,
+        fecha_servicio: invoice.fecha_servicio || undefined,
+        
+        emisor_razon_social: invoice.emisor_razon_social,
+        emisor_nif: invoice.emisor_nif,
+        emisor_direccion: invoice.emisor_direccion,
+        emisor_codigo_postal: invoice.emisor_codigo_postal,
+        emisor_ciudad: invoice.emisor_ciudad,
+        emisor_provincia: invoice.emisor_provincia,
+        emisor_telefono: invoice.emisor_telefono,
+        emisor_email: invoice.emisor_email,
+        emisor_web: invoice.emisor_web,
+        
+        receptor_razon_social: invoice.receptor_razon_social,
+        receptor_nif: invoice.receptor_nif,
+        receptor_direccion: invoice.receptor_direccion,
+        receptor_codigo_postal: invoice.receptor_codigo_postal,
+        receptor_ciudad: invoice.receptor_ciudad,
+        receptor_provincia: invoice.receptor_provincia,
+        receptor_telefono: invoice.receptor_telefono,
+        receptor_email: invoice.receptor_email,
+        
+        lineas: invoice.lineas || [],
+        
+        base_imponible: invoice.base_imponible,
+        iva_porcentaje: invoice.iva_porcentaje,
+        iva_importe: invoice.iva_importe,
+        total: invoice.total,
+        exento_iva: invoice.exento_iva,
+        texto_exencion: invoice.texto_exencion,
+        
+        logo_url: invoice.logo_url,
+        color_primario: invoice.color_primario,
+        color_secundario: invoice.color_secundario,
+        footer_text: invoice.footer_text,
+      });
+      
+      doc.save(`Factura_${invoice.numero_factura}.pdf`);
+      
+      toast({
+        title: "PDF generado",
+        description: "La factura se ha descargado correctamente",
+      });
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo generar el PDF",
+        variant: "destructive",
+      });
     }
-    
-    // Invoice details
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Detalles de la Factura", 20, 96);
-    
-    // Table header
-    doc.setFillColor(240, 240, 240);
-    doc.rect(20, 104, 170, 8, "F");
-    doc.setFontSize(10);
-    doc.text("Concepto", 25, 109);
-    doc.text("Importe", 160, 109);
-    
-    // Table content
-    doc.setFont("helvetica", "normal");
-    doc.text(invoice.concepto, 25, 119);
-    doc.text(`€${invoice.monto.toFixed(2)}`, 160, 119);
-    
-    // Total
-    doc.setFont("helvetica", "bold");
-    doc.line(20, 126, 190, 126);
-    doc.setFontSize(12);
-    doc.text("TOTAL:", 140, 136);
-    doc.text(`€${invoice.monto.toFixed(2)}`, 160, 136);
-    
-    // Status
-    doc.setFontSize(10);
-    doc.text(`Estado: ${invoice.estado.toUpperCase()}`, 20, 151);
-    
-    // Notes
-    if (invoice.notas) {
-      doc.setFont("helvetica", "bold");
-      doc.text("Notas:", 20, 166);
-      doc.setFont("helvetica", "normal");
-      const splitNotes = doc.splitTextToSize(invoice.notas, 170);
-      doc.text(splitNotes, 20, 174);
-    }
-    
-    // Footer
-    doc.setFontSize(8);
-    doc.setTextColor(128, 128, 128);
-    doc.text("Gracias por su confianza", 105, 280, { align: "center" });
-    
-    // Save PDF
-    doc.save(`Factura_${invoice.numero_factura}.pdf`);
-    
-    toast({
-      title: "PDF generado",
-      description: "La factura se ha descargado correctamente",
-    });
   };
 
   const getEstadoBadge = (estado: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive"> = {
+      borrador: "default",
       pendiente: "default",
+      enviada: "default",
       pagada: "secondary",
       cancelada: "destructive",
     };
-    return <Badge variant={variants[estado]}>{estado}</Badge>;
+    return <Badge variant={variants[estado] || "default"}>{estado}</Badge>;
   };
 
   if (loading) {
@@ -185,9 +232,8 @@ export function InvoicesView() {
           <TableHeader>
             <TableRow>
               <TableHead>Número</TableHead>
-              <TableHead>Profesional</TableHead>
-              <TableHead>Concepto</TableHead>
-              <TableHead>Monto</TableHead>
+              <TableHead>Emisor</TableHead>
+              <TableHead>Total</TableHead>
               <TableHead>Fecha Emisión</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
@@ -204,11 +250,8 @@ export function InvoicesView() {
               invoices.map((invoice) => (
                 <TableRow key={invoice.id}>
                   <TableCell className="font-medium">{invoice.numero_factura}</TableCell>
-                  <TableCell>
-                    {invoice.psicologo?.nombre} {invoice.psicologo?.apellidos}
-                  </TableCell>
-                  <TableCell>{invoice.concepto}</TableCell>
-                  <TableCell>€{invoice.monto.toFixed(2)}</TableCell>
+                  <TableCell>{invoice.emisor_razon_social}</TableCell>
+                  <TableCell>€{invoice.total.toFixed(2)}</TableCell>
                   <TableCell>
                     {format(new Date(invoice.fecha_emision), "dd/MM/yyyy", { locale: es })}
                   </TableCell>
@@ -219,6 +262,7 @@ export function InvoicesView() {
                         variant="ghost"
                         size="sm"
                         onClick={() => generatePDF(invoice)}
+                        title="Descargar PDF"
                       >
                         <Download className="h-4 w-4" />
                       </Button>
@@ -228,11 +272,12 @@ export function InvoicesView() {
                             variant="ghost"
                             size="sm"
                             onClick={() => setSelectedInvoice(invoice)}
+                            title="Ver detalles"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="max-h-[80vh] overflow-y-auto">
                           <DialogHeader>
                             <DialogTitle>Detalles de la Factura</DialogTitle>
                           </DialogHeader>
@@ -245,44 +290,105 @@ export function InvoicesView() {
                                 <Download className="mr-2 h-4 w-4" />
                                 Descargar PDF
                               </Button>
-                              <div>
-                                <Label>Número de Factura</Label>
-                                <p className="text-foreground">{selectedInvoice.numero_factura}</p>
+                              
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label>Número de Factura</Label>
+                                  <p className="text-foreground">{selectedInvoice.numero_factura}</p>
+                                </div>
+                                <div>
+                                  <Label>Estado</Label>
+                                  <div className="mt-1">{getEstadoBadge(selectedInvoice.estado)}</div>
+                                </div>
                               </div>
-                              <div>
-                                <Label>Profesional</Label>
-                                <p className="text-foreground">
-                                  {selectedInvoice.psicologo?.nombre} {selectedInvoice.psicologo?.apellidos}
-                                </p>
+
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label>Fecha de Emisión</Label>
+                                  <p className="text-foreground">
+                                    {format(new Date(selectedInvoice.fecha_emision), "dd/MM/yyyy", { locale: es })}
+                                  </p>
+                                </div>
+                                <div>
+                                  <Label>Fecha de Vencimiento</Label>
+                                  <p className="text-foreground">
+                                    {format(new Date(selectedInvoice.fecha_vencimiento), "dd/MM/yyyy", { locale: es })}
+                                  </p>
+                                </div>
                               </div>
+
                               <div>
-                                <Label>Concepto</Label>
-                                <p className="text-foreground">{selectedInvoice.concepto}</p>
+                                <Label className="text-sm font-semibold">Emisor</Label>
+                                <div className="mt-2 space-y-1 text-sm">
+                                  <p className="text-foreground">{selectedInvoice.emisor_razon_social}</p>
+                                  <p className="text-muted-foreground">NIF: {selectedInvoice.emisor_nif}</p>
+                                  <p className="text-muted-foreground">{selectedInvoice.emisor_direccion}</p>
+                                  <p className="text-muted-foreground">
+                                    {selectedInvoice.emisor_codigo_postal} {selectedInvoice.emisor_ciudad} ({selectedInvoice.emisor_provincia})
+                                  </p>
+                                </div>
                               </div>
+
                               <div>
-                                <Label>Monto</Label>
-                                <p className="text-foreground">€{selectedInvoice.monto.toFixed(2)}</p>
+                                <Label className="text-sm font-semibold">Receptor</Label>
+                                <div className="mt-2 space-y-1 text-sm">
+                                  <p className="text-foreground">{selectedInvoice.receptor_razon_social}</p>
+                                  <p className="text-muted-foreground">NIF: {selectedInvoice.receptor_nif}</p>
+                                  {selectedInvoice.receptor_direccion && (
+                                    <p className="text-muted-foreground">{selectedInvoice.receptor_direccion}</p>
+                                  )}
+                                  {(selectedInvoice.receptor_codigo_postal || selectedInvoice.receptor_ciudad) && (
+                                    <p className="text-muted-foreground">
+                                      {selectedInvoice.receptor_codigo_postal} {selectedInvoice.receptor_ciudad} 
+                                      {selectedInvoice.receptor_provincia && ` (${selectedInvoice.receptor_provincia})`}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
+
                               <div>
-                                <Label>Fecha de Emisión</Label>
-                                <p className="text-foreground">
-                                  {format(new Date(selectedInvoice.fecha_emision), "dd/MM/yyyy", { locale: es })}
-                                </p>
+                                <Label className="text-sm font-semibold">Servicios</Label>
+                                <div className="mt-2 space-y-2">
+                                  {selectedInvoice.lineas?.map((linea, idx) => (
+                                    <div key={idx} className="flex justify-between text-sm border-b pb-2">
+                                      <div>
+                                        <p className="text-foreground">{linea.descripcion}</p>
+                                        <p className="text-muted-foreground text-xs">
+                                          {linea.cantidad} x €{linea.precio_unitario.toFixed(2)}
+                                        </p>
+                                      </div>
+                                      <p className="text-foreground font-medium">€{linea.subtotal.toFixed(2)}</p>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                              <div>
-                                <Label>Fecha de Vencimiento</Label>
-                                <p className="text-foreground">
-                                  {format(new Date(selectedInvoice.fecha_vencimiento), "dd/MM/yyyy", { locale: es })}
-                                </p>
+
+                              <div className="space-y-2 pt-4 border-t">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-muted-foreground">Base imponible:</span>
+                                  <span className="text-foreground">€{selectedInvoice.base_imponible.toFixed(2)}</span>
+                                </div>
+                                {selectedInvoice.exento_iva ? (
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">IVA:</span>
+                                    <span className="text-foreground">Exento</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">IVA ({selectedInvoice.iva_porcentaje}%):</span>
+                                    <span className="text-foreground">€{selectedInvoice.iva_importe.toFixed(2)}</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between font-bold text-lg pt-2 border-t">
+                                  <span>TOTAL:</span>
+                                  <span>€{selectedInvoice.total.toFixed(2)}</span>
+                                </div>
                               </div>
-                              <div>
-                                <Label>Estado</Label>
-                                <div className="mt-1">{getEstadoBadge(selectedInvoice.estado)}</div>
-                              </div>
+
                               {selectedInvoice.notas && (
                                 <div>
                                   <Label>Notas</Label>
-                                  <p className="text-foreground">{selectedInvoice.notas}</p>
+                                  <p className="text-foreground text-sm mt-1">{selectedInvoice.notas}</p>
                                 </div>
                               )}
                             </div>
