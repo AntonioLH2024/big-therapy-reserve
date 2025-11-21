@@ -445,6 +445,11 @@ export function BillingManager() {
 
   const handleDownloadPDF = async (invoice: Invoice) => {
     try {
+      if (!config) {
+        toast.error("No se encontró la configuración de facturación");
+        return;
+      }
+
       // Obtener líneas de la factura
       const { data: linesData, error: linesError } = await supabase
         .from("facturas_lineas")
@@ -466,13 +471,21 @@ export function BillingManager() {
       const pdfData = {
         ...facturaCompleta,
         lineas: linesData,
-        logo_url: config?.logo_url,
-        color_primario: config?.color_primario,
-        color_secundario: config?.color_secundario,
-        footer_text: config?.footer_text,
-        emisor_telefono: config?.telefono,
-        emisor_email: config?.email,
-        emisor_web: config?.web,
+        // Asegurar que todos los datos del emisor estén completos
+        emisor_razon_social: facturaCompleta.emisor_razon_social || config.razon_social,
+        emisor_nif: facturaCompleta.emisor_nif || config.nif_cif,
+        emisor_direccion: facturaCompleta.emisor_direccion || config.direccion,
+        emisor_codigo_postal: facturaCompleta.emisor_codigo_postal || config.codigo_postal,
+        emisor_ciudad: facturaCompleta.emisor_ciudad || config.ciudad,
+        emisor_provincia: facturaCompleta.emisor_provincia || config.provincia,
+        emisor_telefono: config.telefono,
+        emisor_email: config.email,
+        emisor_web: config.web,
+        // Personalización
+        logo_url: config.logo_url,
+        color_primario: config.color_primario,
+        color_secundario: config.color_secundario,
+        footer_text: config.footer_text,
       };
 
       const doc = generateInvoicePDF(pdfData);
