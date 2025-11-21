@@ -57,13 +57,13 @@ interface Invoice {
   receptor_codigo_postal?: string | null;
   receptor_ciudad?: string | null;
   receptor_provincia?: string | null;
+  receptor_telefono?: string | null;
+  receptor_email?: string | null;
   concepto: string;
   monto: number;
   base_imponible: number;
   iva_porcentaje: number;
   iva_importe: number;
-  irpf_porcentaje: number;
-  irpf_importe: number;
   total: number;
   exento_iva: boolean;
   notas?: string;
@@ -136,6 +136,8 @@ export function BillingManager() {
     receptor_codigo_postal: "",
     receptor_ciudad: "",
     receptor_provincia: "",
+    receptor_telefono: "",
+    receptor_email: "",
   });
 
   const [lines, setLines] = useState<InvoiceLine[]>([
@@ -243,18 +245,14 @@ export function BillingManager() {
   const calculateTotals = () => {
     const base_imponible = lines.reduce((sum, line) => sum + line.subtotal, 0);
     const iva_porcentaje = config?.exento_iva ? 0 : config?.iva_por_defecto || 0;
-    const irpf_porcentaje = config?.irpf_por_defecto || 0;
     
     const iva_importe = (base_imponible * iva_porcentaje) / 100;
-    const irpf_importe = (base_imponible * irpf_porcentaje) / 100;
-    const total = base_imponible + iva_importe - irpf_importe;
+    const total = base_imponible + iva_importe;
     
     return {
       base_imponible,
       iva_porcentaje,
       iva_importe,
-      irpf_porcentaje,
-      irpf_importe,
       total,
     };
   };
@@ -305,6 +303,8 @@ export function BillingManager() {
             receptor_codigo_postal: formData.receptor_codigo_postal || null,
             receptor_ciudad: formData.receptor_ciudad || null,
             receptor_provincia: formData.receptor_provincia || null,
+            receptor_telefono: formData.receptor_telefono || null,
+            receptor_email: formData.receptor_email || null,
             ...totals,
             notas: formData.notas,
             concepto: lines.map((l) => l.descripcion).join(", "),
@@ -365,6 +365,8 @@ export function BillingManager() {
           receptor_codigo_postal: formData.receptor_codigo_postal || null,
           receptor_ciudad: formData.receptor_ciudad || null,
           receptor_provincia: formData.receptor_provincia || null,
+          receptor_telefono: formData.receptor_telefono || null,
+          receptor_email: formData.receptor_email || null,
           // Totales
           ...totals,
           exento_iva: config.exento_iva,
@@ -420,6 +422,8 @@ export function BillingManager() {
       receptor_codigo_postal: "",
       receptor_ciudad: "",
       receptor_provincia: "",
+      receptor_telefono: "",
+      receptor_email: "",
     });
     setLines([{ descripcion: "", cantidad: 1, precio_unitario: 0, subtotal: 0 }]);
     setIsEditMode(false);
@@ -534,6 +538,8 @@ export function BillingManager() {
       receptor_codigo_postal: selectedInvoice.receptor_codigo_postal || "",
       receptor_ciudad: selectedInvoice.receptor_ciudad || "",
       receptor_provincia: selectedInvoice.receptor_provincia || "",
+      receptor_telefono: selectedInvoice.receptor_telefono || "",
+      receptor_email: selectedInvoice.receptor_email || "",
     });
     
     setLines(invoiceLines.map(line => ({
@@ -725,6 +731,27 @@ export function BillingManager() {
                         placeholder="Madrid"
                       />
                     </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="receptor_telefono">Teléfono</Label>
+                      <Input
+                        id="receptor_telefono"
+                        value={formData.receptor_telefono}
+                        onChange={(e) => setFormData({ ...formData, receptor_telefono: e.target.value })}
+                        placeholder="+34 600 000 000"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="receptor_email">Email</Label>
+                      <Input
+                        id="receptor_email"
+                        type="email"
+                        value={formData.receptor_email}
+                        onChange={(e) => setFormData({ ...formData, receptor_email: e.target.value })}
+                        placeholder="cliente@ejemplo.com"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -829,12 +856,6 @@ export function BillingManager() {
                         <div className="flex justify-between text-sm">
                           <span>IVA ({totals.iva_porcentaje}%):</span>
                           <span>{totals.iva_importe.toFixed(2)} €</span>
-                        </div>
-                      )}
-                      {totals.irpf_porcentaje > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span>IRPF ({totals.irpf_porcentaje}%):</span>
-                          <span>-{totals.irpf_importe.toFixed(2)} €</span>
                         </div>
                       )}
                       <div className="flex justify-between font-bold text-lg border-t pt-2">
@@ -1057,6 +1078,8 @@ export function BillingManager() {
                       {selectedInvoice.receptor_provincia && ` (${selectedInvoice.receptor_provincia})`}
                     </p>
                   )}
+                  {selectedInvoice.receptor_telefono && <p>Tel: {selectedInvoice.receptor_telefono}</p>}
+                  {selectedInvoice.receptor_email && <p>Email: {selectedInvoice.receptor_email}</p>}
                 </div>
               </div>
 
@@ -1120,13 +1143,6 @@ export function BillingManager() {
                     <div className="flex justify-between">
                       <span>IVA ({selectedInvoice.iva_porcentaje}%):</span>
                       <span className="font-medium">{selectedInvoice.iva_importe.toFixed(2)} €</span>
-                    </div>
-                  )}
-                  
-                  {selectedInvoice.irpf_porcentaje > 0 && (
-                    <div className="flex justify-between">
-                      <span>IRPF ({selectedInvoice.irpf_porcentaje}%):</span>
-                      <span className="font-medium">-{selectedInvoice.irpf_importe.toFixed(2)} €</span>
                     </div>
                   )}
                   
