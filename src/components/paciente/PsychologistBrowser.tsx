@@ -34,7 +34,22 @@ export const PsychologistBrowser = ({ open, onOpenChange }: PsychologistBrowserP
   const { data: psychologists, isLoading } = useQuery({
     queryKey: ["psychologists-with-details"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First get all psychologist user_ids
+      const { data: psychologistRoles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "psicologo");
+
+      if (rolesError) throw rolesError;
+      
+      if (!psychologistRoles || psychologistRoles.length === 0) {
+        return [];
+      }
+
+      const psychologistIds = psychologistRoles.map(r => r.user_id);
+
+      // Then get their profiles and details
+      const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select(`
           id,
@@ -44,14 +59,13 @@ export const PsychologistBrowser = ({ open, onOpenChange }: PsychologistBrowserP
             biografia,
             especialidad,
             foto_url
-          ),
-          user_roles!inner(role)
+          )
         `)
-        .eq("user_roles.role", "psicologo");
+        .in("id", psychologistIds);
 
-      if (error) throw error;
+      if (profilesError) throw profilesError;
 
-      return (data || []).map((item: any) => ({
+      return (profiles || []).map((item: any) => ({
         id: item.id,
         nombre: item.nombre,
         apellidos: item.apellidos,
