@@ -57,6 +57,8 @@ interface Invoice {
   receptor_codigo_postal?: string | null;
   receptor_ciudad?: string | null;
   receptor_provincia?: string | null;
+  concepto: string;
+  monto: number;
   base_imponible: number;
   iva_porcentaje: number;
   iva_importe: number;
@@ -1042,6 +1044,24 @@ export function BillingManager() {
                       {selectedInvoice.receptor_provincia && ` (${selectedInvoice.receptor_provincia})`}
                     </p>
                   )}
+                </div>
+              </div>
+
+              {/* Concepto General */}
+              <div>
+                <h4 className="font-semibold text-base border-b pb-2 mb-2">Concepto / Servicio</h4>
+                <p className="text-sm">{selectedInvoice.concepto}</p>
+              </div>
+
+              {/* Importe */}
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-semibold text-base border-b pb-2 mb-2">Importe Base</h4>
+                  <p className="text-sm font-medium">{selectedInvoice.monto.toFixed(2)} €</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-base border-b pb-2 mb-2">Total de la Factura</h4>
+                  <p className="text-lg font-bold text-primary">{selectedInvoice.total.toFixed(2)} €</p>
                 </div>
               </div>
 
