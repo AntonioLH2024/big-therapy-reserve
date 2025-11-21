@@ -383,7 +383,7 @@ export const AppointmentsManager = () => {
                     </p>
                     <p>
                       <span className="font-medium text-foreground">Fecha:</span>{" "}
-                      {format(newAppointmentDate, "PPP", { locale: require("date-fns/locale/es") })}
+                      {format(newAppointmentDate, "PPP", { locale: es })}
                     </p>
                     <p>
                       <span className="font-medium text-foreground">Hora:</span> {selectedHora}
