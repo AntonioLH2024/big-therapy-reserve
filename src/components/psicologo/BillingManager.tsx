@@ -53,6 +53,10 @@ interface Invoice {
   paciente_id: string;
   receptor_razon_social: string;
   receptor_nif: string;
+  receptor_direccion?: string | null;
+  receptor_codigo_postal?: string | null;
+  receptor_ciudad?: string | null;
+  receptor_provincia?: string | null;
   base_imponible: number;
   iva_porcentaje: number;
   iva_importe: number;
@@ -108,6 +112,8 @@ export function BillingManager() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [invoiceLines, setInvoiceLines] = useState<InvoiceLine[]>([]);
 
   // Filtros
   const [filterNif, setFilterNif] = useState("");
@@ -284,76 +290,119 @@ export function BillingManager() {
 
       const totals = calculateTotals();
 
-      // Generar número de factura
-      const { data: numeroData, error: numeroError } = await supabase.rpc(
-        "generate_invoice_number_with_serie",
-        { p_psicologo_id: user?.id }
-      );
+      if (isEditMode && selectedInvoice) {
+        // Actualizar factura existente
+        const { error: updateError } = await supabase
+          .from("facturas")
+          .update({
+            estado: formData.estado,
+            fecha_servicio: formData.fecha_servicio || null,
+            receptor_razon_social: formData.receptor_razon_social,
+            receptor_nif: formData.receptor_nif,
+            receptor_direccion: formData.receptor_direccion || null,
+            receptor_codigo_postal: formData.receptor_codigo_postal || null,
+            receptor_ciudad: formData.receptor_ciudad || null,
+            receptor_provincia: formData.receptor_provincia || null,
+            ...totals,
+            notas: formData.notas,
+            concepto: lines.map((l) => l.descripcion).join(", "),
+          } as any)
+          .eq("id", selectedInvoice.id);
 
-      if (numeroError) throw numeroError;
+        if (updateError) throw updateError;
 
-      // Crear factura
-      const invoiceInsertData: any = {
-        psicologo_id: user?.id,
-        paciente_id: formData.paciente_id,
-        numero_factura: numeroData,
-        serie: config.serie_factura || "F",
-        estado: formData.estado,
-        fecha_emision: new Date().toISOString(),
-        fecha_servicio: formData.fecha_servicio || null,
-        fecha_vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 días
-        monto: totals.base_imponible,
-        // Emisor
-        emisor_razon_social: config.razon_social,
-        emisor_nif: config.nif_cif,
-        emisor_direccion: config.direccion,
-        emisor_codigo_postal: config.codigo_postal,
-        emisor_ciudad: config.ciudad,
-        emisor_provincia: config.provincia,
-        // Receptor
-        receptor_razon_social: formData.receptor_razon_social,
-        receptor_nif: formData.receptor_nif,
-        receptor_direccion: formData.receptor_direccion || null,
-        receptor_codigo_postal: formData.receptor_codigo_postal || null,
-        receptor_ciudad: formData.receptor_ciudad || null,
-        receptor_provincia: formData.receptor_provincia || null,
-        // Totales
-        ...totals,
-        exento_iva: config.exento_iva,
-        texto_exencion: config.texto_exencion_iva,
-        notas: formData.notas,
-        concepto: lines.map((l) => l.descripcion).join(", "),
-      };
+        // Eliminar líneas antiguas y crear nuevas
+        await supabase.from("facturas_lineas").delete().eq("factura_id", selectedInvoice.id);
+        
+        const { error: linesError } = await supabase.from("facturas_lineas").insert(
+          lines.map((line, index) => ({
+            factura_id: selectedInvoice.id,
+            descripcion: line.descripcion,
+            cantidad: line.cantidad,
+            precio_unitario: line.precio_unitario,
+            subtotal: line.subtotal,
+            orden: index,
+          }))
+        );
 
-      const { data: invoiceData, error: invoiceError } = await supabase
-        .from("facturas")
-        .insert(invoiceInsertData)
-        .select()
-        .single();
+        if (linesError) throw linesError;
 
-      if (invoiceError) throw invoiceError;
+        toast.success("Factura actualizada correctamente");
+      } else {
+        // Crear nueva factura
+        // Generar número de factura
+        const { data: numeroData, error: numeroError } = await supabase.rpc(
+          "generate_invoice_number_with_serie",
+          { p_psicologo_id: user?.id }
+        );
 
-      // Crear líneas de factura
-      const { error: linesError } = await supabase.from("facturas_lineas").insert(
-        lines.map((line, index) => ({
-          factura_id: invoiceData.id,
-          descripcion: line.descripcion,
-          cantidad: line.cantidad,
-          precio_unitario: line.precio_unitario,
-          subtotal: line.subtotal,
-          orden: index,
-        }))
-      );
+        if (numeroError) throw numeroError;
 
-      if (linesError) throw linesError;
+        // Crear factura
+        const invoiceInsertData: any = {
+          psicologo_id: user?.id,
+          paciente_id: formData.paciente_id,
+          numero_factura: numeroData,
+          serie: config.serie_factura || "F",
+          estado: formData.estado,
+          fecha_emision: new Date().toISOString(),
+          fecha_servicio: formData.fecha_servicio || null,
+          fecha_vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 días
+          monto: totals.base_imponible,
+          // Emisor
+          emisor_razon_social: config.razon_social,
+          emisor_nif: config.nif_cif,
+          emisor_direccion: config.direccion,
+          emisor_codigo_postal: config.codigo_postal,
+          emisor_ciudad: config.ciudad,
+          emisor_provincia: config.provincia,
+          // Receptor
+          receptor_razon_social: formData.receptor_razon_social,
+          receptor_nif: formData.receptor_nif,
+          receptor_direccion: formData.receptor_direccion || null,
+          receptor_codigo_postal: formData.receptor_codigo_postal || null,
+          receptor_ciudad: formData.receptor_ciudad || null,
+          receptor_provincia: formData.receptor_provincia || null,
+          // Totales
+          ...totals,
+          exento_iva: config.exento_iva,
+          texto_exencion: config.texto_exencion_iva,
+          notas: formData.notas,
+          concepto: lines.map((l) => l.descripcion).join(", "),
+        };
 
-      toast.success("Factura creada correctamente");
+        const { data: invoiceData, error: invoiceError } = await supabase
+          .from("facturas")
+          .insert(invoiceInsertData)
+          .select()
+          .single();
+
+        if (invoiceError) throw invoiceError;
+
+        // Crear líneas de factura
+        const { error: linesError } = await supabase.from("facturas_lineas").insert(
+          lines.map((line, index) => ({
+            factura_id: invoiceData.id,
+            descripcion: line.descripcion,
+            cantidad: line.cantidad,
+            precio_unitario: line.precio_unitario,
+            subtotal: line.subtotal,
+            orden: index,
+          }))
+        );
+
+        if (linesError) throw linesError;
+
+        toast.success("Factura creada correctamente");
+      }
+
       setIsDialogOpen(false);
+      setIsEditMode(false);
       resetForm();
       fetchInvoices();
     } catch (error: any) {
-      console.error("Error creating invoice:", error);
-      toast.error("Error al crear la factura: " + error.message);
+      console.error("Error creating/updating invoice:", error);
+      toast.error("Error al procesar la factura: " + error.message);
     }
   };
 
@@ -371,6 +420,8 @@ export function BillingManager() {
       receptor_provincia: "",
     });
     setLines([{ descripcion: "", cantidad: 1, precio_unitario: 0, subtotal: 0 }]);
+    setIsEditMode(false);
+    setSelectedInvoice(null);
   };
 
   const handleUpdateStatus = async (invoiceId: string, newStatus: string) => {
@@ -434,7 +485,53 @@ export function BillingManager() {
 
   const handleViewDetail = async (invoice: Invoice) => {
     setSelectedInvoice(invoice);
+    
+    // Obtener líneas de la factura
+    try {
+      const { data: linesData, error } = await supabase
+        .from("facturas_lineas")
+        .select("*")
+        .eq("factura_id", invoice.id)
+        .order("orden");
+      
+      if (error) throw error;
+      setInvoiceLines(linesData || []);
+    } catch (error) {
+      console.error("Error fetching invoice lines:", error);
+      setInvoiceLines([]);
+    }
+    
     setIsDetailDialogOpen(true);
+  };
+
+  const handleEditInvoice = () => {
+    if (!selectedInvoice) return;
+    
+    // Cargar datos de la factura en el formulario
+    setFormData({
+      paciente_id: selectedInvoice.paciente_id,
+      fecha_servicio: selectedInvoice.fecha_servicio || "",
+      estado: selectedInvoice.estado,
+      notas: selectedInvoice.notas || "",
+      receptor_razon_social: selectedInvoice.receptor_razon_social,
+      receptor_nif: selectedInvoice.receptor_nif,
+      receptor_direccion: selectedInvoice.receptor_direccion || "",
+      receptor_codigo_postal: selectedInvoice.receptor_codigo_postal || "",
+      receptor_ciudad: selectedInvoice.receptor_ciudad || "",
+      receptor_provincia: selectedInvoice.receptor_provincia || "",
+    });
+    
+    setLines(invoiceLines.map(line => ({
+      id: line.id,
+      descripcion: line.descripcion,
+      cantidad: line.cantidad,
+      precio_unitario: line.precio_unitario,
+      subtotal: line.subtotal
+    })));
+    
+    setIsEditMode(true);
+    setIsDetailDialogOpen(false);
+    setIsDialogOpen(true);
   };
 
   const getEstadoBadge = (estado: string) => {
@@ -512,7 +609,7 @@ export function BillingManager() {
             </DialogTrigger>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Crear Nueva Factura</DialogTitle>
+                <DialogTitle>{isEditMode ? "Editar Factura" : "Crear Nueva Factura"}</DialogTitle>
               </DialogHeader>
               <div className="space-y-6">
                 {/* Selección de paciente */}
@@ -746,7 +843,7 @@ export function BillingManager() {
                 </div>
 
                 <Button onClick={handleCreateInvoice} className="w-full">
-                  Crear Factura
+                  {isEditMode ? "Actualizar Factura" : "Crear Factura"}
                 </Button>
               </div>
             </DialogContent>
@@ -898,55 +995,140 @@ export function BillingManager() {
 
       {/* Dialog de detalle */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalle de Factura {selectedInvoice?.numero_factura}</DialogTitle>
           </DialogHeader>
-          {selectedInvoice && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h4 className="font-semibold mb-2">Información General</h4>
+          {selectedInvoice && config && (
+            <div className="space-y-6">
+              {/* Información General */}
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-base border-b pb-2">Información de la Factura</h4>
                   <div className="space-y-1 text-sm">
-                    <p><strong>Fecha emisión:</strong> {new Date(selectedInvoice.fecha_emision).toLocaleDateString("es-ES")}</p>
+                    <p><strong>Número:</strong> {selectedInvoice.numero_factura}</p>
+                    <p><strong>Serie:</strong> {selectedInvoice.serie}</p>
+                    <p><strong>Fecha de emisión:</strong> {new Date(selectedInvoice.fecha_emision).toLocaleDateString("es-ES")}</p>
                     {selectedInvoice.fecha_servicio && (
-                      <p><strong>Fecha servicio:</strong> {new Date(selectedInvoice.fecha_servicio).toLocaleDateString("es-ES")}</p>
+                      <p><strong>Fecha del servicio:</strong> {new Date(selectedInvoice.fecha_servicio).toLocaleDateString("es-ES")}</p>
                     )}
                     <p><strong>Estado:</strong> {getEstadoBadge(selectedInvoice.estado)}</p>
                   </div>
                 </div>
-                <div>
-                  <h4 className="font-semibold mb-2">Cliente</h4>
+
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-base border-b pb-2">Datos del Emisor</h4>
                   <div className="space-y-1 text-sm">
-                    <p><strong>Nombre:</strong> {selectedInvoice.receptor_razon_social}</p>
-                    <p><strong>NIF:</strong> {selectedInvoice.receptor_nif}</p>
+                    <p><strong>{config.razon_social}</strong></p>
+                    <p>NIF: {config.nif_cif}</p>
+                    <p>{config.direccion}</p>
+                    <p>{config.codigo_postal} {config.ciudad} ({config.provincia})</p>
+                    {config.telefono && <p>Tel: {config.telefono}</p>}
+                    {config.email && <p>Email: {config.email}</p>}
                   </div>
                 </div>
               </div>
 
+              {/* Datos del Receptor */}
               <div>
-                <h4 className="font-semibold mb-2">Importes</h4>
+                <h4 className="font-semibold text-base border-b pb-2 mb-2">Datos del Receptor</h4>
                 <div className="space-y-1 text-sm">
-                  <p><strong>Base imponible:</strong> {selectedInvoice.base_imponible.toFixed(2)} €</p>
-                  <p><strong>IVA ({selectedInvoice.iva_porcentaje}%):</strong> {selectedInvoice.iva_importe.toFixed(2)} €</p>
-                  {selectedInvoice.irpf_porcentaje > 0 && (
-                    <p><strong>IRPF ({selectedInvoice.irpf_porcentaje}%):</strong> -{selectedInvoice.irpf_importe.toFixed(2)} €</p>
+                  <p><strong>{selectedInvoice.receptor_razon_social}</strong></p>
+                  <p>NIF: {selectedInvoice.receptor_nif}</p>
+                  {selectedInvoice.receptor_direccion && <p>{selectedInvoice.receptor_direccion}</p>}
+                  {(selectedInvoice.receptor_codigo_postal || selectedInvoice.receptor_ciudad || selectedInvoice.receptor_provincia) && (
+                    <p>
+                      {selectedInvoice.receptor_codigo_postal} {selectedInvoice.receptor_ciudad} 
+                      {selectedInvoice.receptor_provincia && ` (${selectedInvoice.receptor_provincia})`}
+                    </p>
                   )}
-                  <p className="text-lg font-bold mt-2"><strong>TOTAL:</strong> {selectedInvoice.total.toFixed(2)} €</p>
                 </div>
               </div>
 
+              {/* Líneas de Factura */}
+              <div>
+                <h4 className="font-semibold text-base border-b pb-2 mb-2">Conceptos / Servicios</h4>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Descripción</TableHead>
+                      <TableHead className="text-right">Cantidad</TableHead>
+                      <TableHead className="text-right">Precio Unit.</TableHead>
+                      <TableHead className="text-right">Subtotal</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {invoiceLines.map((line, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{line.descripcion}</TableCell>
+                        <TableCell className="text-right">{line.cantidad}</TableCell>
+                        <TableCell className="text-right">{line.precio_unitario.toFixed(2)} €</TableCell>
+                        <TableCell className="text-right">{line.subtotal.toFixed(2)} €</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Totales */}
+              <div className="flex justify-end">
+                <div className="w-80 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Base imponible:</span>
+                    <span className="font-medium">{selectedInvoice.base_imponible.toFixed(2)} €</span>
+                  </div>
+                  
+                  {selectedInvoice.exento_iva ? (
+                    <div className="flex justify-between">
+                      <span>IVA:</span>
+                      <span className="font-medium">Exento</span>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between">
+                      <span>IVA ({selectedInvoice.iva_porcentaje}%):</span>
+                      <span className="font-medium">{selectedInvoice.iva_importe.toFixed(2)} €</span>
+                    </div>
+                  )}
+                  
+                  {selectedInvoice.irpf_porcentaje > 0 && (
+                    <div className="flex justify-between">
+                      <span>IRPF ({selectedInvoice.irpf_porcentaje}%):</span>
+                      <span className="font-medium">-{selectedInvoice.irpf_importe.toFixed(2)} €</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between text-lg font-bold pt-2 border-t">
+                    <span>TOTAL:</span>
+                    <span>{selectedInvoice.total.toFixed(2)} €</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Texto de exención IVA */}
+              {selectedInvoice.exento_iva && config.texto_exencion_iva && (
+                <div className="text-xs text-muted-foreground italic bg-muted p-3 rounded">
+                  {config.texto_exencion_iva}
+                </div>
+              )}
+
+              {/* Notas */}
               {selectedInvoice.notas && (
                 <div>
-                  <h4 className="font-semibold mb-2">Notas</h4>
+                  <h4 className="font-semibold text-base border-b pb-2 mb-2">Notas / Observaciones</h4>
                   <p className="text-sm">{selectedInvoice.notas}</p>
                 </div>
               )}
 
-              <Button onClick={() => handleDownloadPDF(selectedInvoice)} className="w-full">
-                <Download className="h-4 w-4 mr-2" />
-                Descargar PDF
-              </Button>
+              {/* Botones de acción */}
+              <div className="flex gap-2">
+                <Button onClick={handleEditInvoice} variant="outline" className="flex-1">
+                  Editar Factura
+                </Button>
+                <Button onClick={() => handleDownloadPDF(selectedInvoice)} className="flex-1">
+                  <Download className="h-4 w-4 mr-2" />
+                  Descargar PDF
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
