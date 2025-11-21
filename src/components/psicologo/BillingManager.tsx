@@ -283,36 +283,38 @@ export function BillingManager() {
       if (numeroError) throw numeroError;
 
       // Crear factura
+      const invoiceInsertData: any = {
+        paciente_id: formData.paciente_id,
+        numero_factura: numeroData,
+        serie: config.serie_factura || "F",
+        estado: formData.estado,
+        fecha_emision: new Date().toISOString(),
+        fecha_servicio: formData.fecha_servicio || null,
+        // Emisor
+        emisor_razon_social: config.razon_social,
+        emisor_nif: config.nif_cif,
+        emisor_direccion: config.direccion,
+        emisor_codigo_postal: config.codigo_postal,
+        emisor_ciudad: config.ciudad,
+        emisor_provincia: config.provincia,
+        // Receptor
+        receptor_razon_social: validationData.receptor_razon_social,
+        receptor_nif: validationData.receptor_nif,
+        receptor_direccion: validationData.receptor_direccion,
+        receptor_codigo_postal: validationData.receptor_codigo_postal,
+        receptor_ciudad: validationData.receptor_ciudad,
+        receptor_provincia: validationData.receptor_provincia,
+        // Totales
+        ...totals,
+        exento_iva: config.exento_iva,
+        texto_exencion: config.texto_exencion_iva,
+        notas: formData.notas,
+        concepto: lines.map((l) => l.descripcion).join(", "),
+      };
+
       const { data: invoiceData, error: invoiceError } = await supabase
         .from("facturas")
-        .insert({
-          paciente_id: formData.paciente_id,
-          numero_factura: numeroData,
-          serie: config.serie_factura || "F",
-          estado: formData.estado,
-          fecha_emision: new Date().toISOString(),
-          fecha_servicio: formData.fecha_servicio || null,
-          // Emisor
-          emisor_razon_social: config.razon_social,
-          emisor_nif: config.nif_cif,
-          emisor_direccion: config.direccion,
-          emisor_codigo_postal: config.codigo_postal,
-          emisor_ciudad: config.ciudad,
-          emisor_provincia: config.provincia,
-          // Receptor
-          receptor_razon_social: validationData.receptor_razon_social,
-          receptor_nif: validationData.receptor_nif,
-          receptor_direccion: validationData.receptor_direccion,
-          receptor_codigo_postal: validationData.receptor_codigo_postal,
-          receptor_ciudad: validationData.receptor_ciudad,
-          receptor_provincia: validationData.receptor_provincia,
-          // Totales
-          ...totals,
-          exento_iva: config.exento_iva,
-          texto_exencion: config.texto_exencion_iva,
-          notas: formData.notas,
-          concepto: lines.map((l) => l.descripcion).join(", "),
-        })
+        .insert(invoiceInsertData)
         .select()
         .single();
 
