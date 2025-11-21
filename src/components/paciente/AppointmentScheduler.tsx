@@ -30,17 +30,25 @@ interface AppointmentSchedulerProps {
   embedded?: boolean;
   onAppointmentScheduled?: () => void;
   appointmentToChange?: string; // ID of appointment being replaced
+  defaultPsychologist?: string; // Pre-selected psychologist
 }
 
-export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled, appointmentToChange }: AppointmentSchedulerProps = {}) => {
+export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled, appointmentToChange, defaultPsychologist }: AppointmentSchedulerProps = {}) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [selectedPsychologist, setSelectedPsychologist] = useState<string>("");
+  const [selectedPsychologist, setSelectedPsychologist] = useState<string>(defaultPsychologist || "");
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [servicio, setServicio] = useState<string>("");
   const [notas, setNotas] = useState<string>("");
+
+  // Update selected psychologist if default changes
+  useEffect(() => {
+    if (defaultPsychologist) {
+      setSelectedPsychologist(defaultPsychologist);
+    }
+  }, [defaultPsychologist]);
 
   // Load selected service from localStorage when dialog opens
   useEffect(() => {
@@ -437,6 +445,11 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled,
   );
 
   if (embedded) {
+    return formContent;
+  }
+
+  // Don't render the dialog if used with defaultPsychologist (embedded mode)
+  if (embedded && defaultPsychologist) {
     return formContent;
   }
 
