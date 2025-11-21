@@ -160,15 +160,29 @@ export function BillingManager() {
     try {
       const { data, error } = await supabase
         .from("facturas")
-        .select(`
-          *,
-          paciente:profiles!facturas_paciente_id_fkey(nombre, apellidos)
-        `)
+        .select("*")
         .eq("psicologo_id", user?.id)
         .order("fecha_emision", { ascending: false });
 
       if (error) throw error;
-      setInvoices(data as any);
+      
+      // Obtener nombres de pacientes por separado
+      const invoicesWithPatients = await Promise.all(
+        (data || []).map(async (invoice) => {
+          const { data: patientData } = await supabase
+            .from("profiles")
+            .select("nombre, apellidos")
+            .eq("id", invoice.paciente_id)
+            .single();
+          
+          return {
+            ...invoice,
+            paciente: patientData
+          };
+        })
+      );
+      
+      setInvoices(invoicesWithPatients as any);
     } catch (error: any) {
       console.error("Error fetching invoices:", error);
       toast.error("Error al cargar las facturas");
@@ -281,12 +295,15 @@ export function BillingManager() {
 
       // Crear factura
       const invoiceInsertData: any = {
+        psicologo_id: user?.id,
         paciente_id: formData.paciente_id,
         numero_factura: numeroData,
         serie: config.serie_factura || "F",
         estado: formData.estado,
         fecha_emision: new Date().toISOString(),
         fecha_servicio: formData.fecha_servicio || null,
+        fecha_vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 días
+        monto: totals.base_imponible,
         // Emisor
         emisor_razon_social: config.razon_social,
         emisor_nif: config.nif_cif,
