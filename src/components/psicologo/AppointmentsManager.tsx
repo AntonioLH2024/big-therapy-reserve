@@ -425,7 +425,6 @@ export const AppointmentsManager = () => {
                 <TableHead className="text-muted-foreground">Paciente</TableHead>
                 <TableHead className="text-muted-foreground">Servicio</TableHead>
                 <TableHead className="text-muted-foreground">Estado</TableHead>
-                <TableHead className="text-muted-foreground">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -437,16 +436,6 @@ export const AppointmentsManager = () => {
                   </TableCell>
                   <TableCell className="text-foreground">{appointment.servicio}</TableCell>
                   <TableCell className="text-foreground">{appointment.estado}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="icon" onClick={() => handleEdit(appointment)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="icon" onClick={() => handleDelete(appointment.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
