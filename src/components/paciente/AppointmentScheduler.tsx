@@ -79,6 +79,24 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled,
     },
   });
 
+  // Fetch psychologist services
+  const { data: psychologistServices } = useQuery({
+    queryKey: ["psychologist-services", selectedPsychologist],
+    queryFn: async () => {
+      if (!selectedPsychologist) return [];
+
+      const { data, error } = await supabase
+        .from("psicologo_detalles")
+        .select("servicios")
+        .eq("id", selectedPsychologist)
+        .single();
+
+      if (error) throw error;
+      return data?.servicios || [];
+    },
+    enabled: !!selectedPsychologist,
+  });
+
   // Fetch existing appointments for selected psychologist and date
   const { data: existingAppointments } = useQuery({
     queryKey: ["psychologist-appointments", selectedPsychologist, selectedDate],
@@ -306,12 +324,24 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled,
               <Check className="h-4 w-4 text-green-500" />
             )}
           </label>
-          <Input
-            value={servicio}
-            onChange={(e) => setServicio(e.target.value)}
-            placeholder="Ej: Consulta Individual, Terapia de Parejas"
-            className="bg-background"
-          />
+          <Select value={servicio} onValueChange={setServicio}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona un servicio" />
+            </SelectTrigger>
+            <SelectContent>
+              {psychologistServices && psychologistServices.length > 0 ? (
+                psychologistServices.map((service: string) => (
+                  <SelectItem key={service} value={service}>
+                    {service}
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectItem value="no-services" disabled>
+                  No hay servicios disponibles
+                </SelectItem>
+              )}
+            </SelectContent>
+          </Select>
         </div>
       )}
 
