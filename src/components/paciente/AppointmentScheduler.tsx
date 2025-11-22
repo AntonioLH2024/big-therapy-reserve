@@ -357,7 +357,7 @@ export const AppointmentScheduler = ({ embedded = false, onAppointmentScheduled,
                         disabled={isOccupied}
                         className={cn(
                           "w-full",
-                          isOccupied && "bg-muted text-muted-foreground opacity-50 cursor-not-allowed line-through",
+                          isOccupied && "bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400 border-red-300 dark:border-red-800 opacity-70 cursor-not-allowed line-through",
                           isSelected && !isOccupied && "bg-red-500 text-white border-red-500 hover:bg-red-600"
                         )}
                       >
