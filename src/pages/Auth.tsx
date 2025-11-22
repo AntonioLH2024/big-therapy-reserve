@@ -10,6 +10,8 @@ import { useAuth } from "@/integrations/supabase/auth";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { toast } from "sonner";
 import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
+import heroImage from "@/assets/hero-therapy.jpg";
 const authSchema = z.object({
   email: z.string().email("Email inválido").max(255, "Email muy largo"),
   password: z.string().min(6, "Mínimo 6 caracteres").max(100, "Contraseña muy larga")
@@ -30,6 +32,7 @@ const Auth = () => {
     user
   } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
   useEffect(() => {
     // Redirect if already logged in
     if (user) {
@@ -89,11 +92,40 @@ const Auth = () => {
       setLoading(false);
     }
   };
-  return <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="absolute top-4 right-4">
+
+  const handlePasswordReset = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("resetEmail") as string;
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth`,
+      });
+
+      if (error) throw error;
+
+      toast.success("Se ha enviado un enlace de recuperación a tu email");
+      setShowPasswordReset(false);
+    } catch (error: any) {
+      toast.error(error.message || "Error al enviar el email de recuperación");
+    } finally {
+      setLoading(false);
+    }
+  };
+  return <div className="min-h-screen relative flex items-center justify-center p-4">
+      {/* Background Image */}
+      <div className="absolute inset-0 bg-cover bg-center" style={{
+        backgroundImage: `url(${heroImage})`
+      }}>
+        <div className="absolute inset-0 bg-gradient-to-br from-background/95 via-background/90 to-background/80" />
+      </div>
+      
+      <div className="absolute top-4 right-4 z-10">
         <ThemeToggle />
       </div>
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md relative z-10">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-primary mb-2 cursor-pointer" onClick={() => navigate("/")}>
             Centro de psicología Reservas
@@ -108,33 +140,86 @@ const Auth = () => {
           </TabsList>
 
           <TabsContent value="login">
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="text-foreground">Iniciar Sesión</CardTitle>
-                <CardDescription>
-                  Ingresa tus credenciales para acceder
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" name="email" type="email" placeholder="tu@email.com" required className="bg-background" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Contraseña</Label>
-                    <Input id="password" name="password" type="password" required className="bg-background" />
-                  </div>
-                  <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={loading}>
-                    {loading ? "Ingresando..." : "Iniciar Sesión"}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
+            {!showPasswordReset ? (
+              <Card className="bg-card/95 backdrop-blur border-border">
+                <CardHeader>
+                  <CardTitle className="text-foreground">Iniciar Sesión</CardTitle>
+                  <CardDescription>
+                    Ingresa tus credenciales para acceder
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleLogin} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input id="email" name="email" type="email" placeholder="tu@email.com" required className="bg-background" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Contraseña</Label>
+                      <Input id="password" name="password" type="password" required className="bg-background" />
+                    </div>
+                    <div className="flex justify-end">
+                      <Button 
+                        type="button" 
+                        variant="link" 
+                        className="text-sm text-primary px-0"
+                        onClick={() => setShowPasswordReset(true)}
+                      >
+                        ¿Olvidaste tu contraseña?
+                      </Button>
+                    </div>
+                    <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={loading}>
+                      {loading ? "Ingresando..." : "Iniciar Sesión"}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="bg-card/95 backdrop-blur border-border">
+                <CardHeader>
+                  <CardTitle className="text-foreground">Recuperar Contraseña</CardTitle>
+                  <CardDescription>
+                    Te enviaremos un enlace para restablecer tu contraseña
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handlePasswordReset} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="resetEmail">Email</Label>
+                      <Input 
+                        id="resetEmail" 
+                        name="resetEmail" 
+                        type="email" 
+                        placeholder="tu@email.com" 
+                        required 
+                        className="bg-background" 
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => setShowPasswordReset(false)}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button 
+                        type="submit" 
+                        className="flex-1 bg-primary hover:bg-primary/90" 
+                        disabled={loading}
+                      >
+                        {loading ? "Enviando..." : "Enviar enlace"}
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="signup">
-            <Card className="bg-card border-border">
+            <Card className="bg-card/95 backdrop-blur border-border">
               <CardHeader>
                 <CardTitle className="text-foreground">Crear Cuenta</CardTitle>
                 <CardDescription>
