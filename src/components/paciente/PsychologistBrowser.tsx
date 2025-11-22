@@ -18,6 +18,7 @@ interface Psychologist {
   detalles?: {
     biografia: string | null;
     especialidad: string[] | null;
+    servicios: string[] | null;
     foto_url: string | null;
   };
 }
@@ -60,6 +61,7 @@ export const PsychologistBrowser = ({ open, onOpenChange }: PsychologistBrowserP
           psicologo_detalles(
             biografia,
             especialidad,
+            servicios,
             foto_url
           )
         `)
@@ -216,16 +218,41 @@ export const PsychologistBrowser = ({ open, onOpenChange }: PsychologistBrowserP
 
                         {/* Specialties */}
                         {psy.detalles?.especialidad && psy.detalles.especialidad.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 mb-3">
-                            {psy.detalles.especialidad.map((esp, idx) => (
-                              <Badge 
-                                key={idx} 
-                                variant="secondary" 
-                                className="text-xs font-medium"
-                              >
-                                {esp}
-                              </Badge>
-                            ))}
+                          <div className="mb-2">
+                            <span className="text-xs font-semibold text-muted-foreground mb-1 block">
+                              Especialidades:
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {psy.detalles.especialidad.map((esp, idx) => (
+                                <Badge 
+                                  key={idx} 
+                                  variant="secondary" 
+                                  className="text-xs font-medium"
+                                >
+                                  {esp}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Services */}
+                        {psy.detalles?.servicios && psy.detalles.servicios.length > 0 && (
+                          <div className="mb-3">
+                            <span className="text-xs font-semibold text-muted-foreground mb-1 block">
+                              Servicios:
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {psy.detalles.servicios.map((serv, idx) => (
+                                <Badge 
+                                  key={idx} 
+                                  variant="outline" 
+                                  className="text-xs font-medium"
+                                >
+                                  {serv}
+                                </Badge>
+                              ))}
+                            </div>
                           </div>
                         )}
 
