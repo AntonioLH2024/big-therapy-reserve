@@ -87,7 +87,7 @@ const Index = () => {
               <span className="text-primary">Prioridad</span>
             </h2>
             <p className="text-xl md:text-2xl mb-8 text-muted-foreground">
-              Conecta con psicólogos especializados y reserva tu cita en minutos
+              Encuentra psicólogos especializados y reserva tu cita                            
             </p>
             <Button size="lg" className="text-lg px-8 py-6 bg-primary hover:bg-primary/90" onClick={() => navigate("/servicios")}>
               <Calendar className="mr-2 h-5 w-5" />
