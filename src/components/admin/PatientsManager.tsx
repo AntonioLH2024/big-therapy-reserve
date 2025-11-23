@@ -12,6 +12,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Plus, Pencil, Trash2, Users, Eye } from "lucide-react";
+import { validateNIF } from "@/lib/nif-validator";
 
 const patientSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -19,6 +20,14 @@ const patientSchema = z.object({
   nombre: z.string().min(1, "Nombre requerido"),
   apellidos: z.string().min(1, "Apellidos requeridos"),
   telefono: z.string().min(1, "Teléfono requerido"),
+  nif_dni: z.string().optional().refine(
+    (val) => !val || validateNIF(val),
+    "NIF/DNI inválido"
+  ),
+  direccion: z.string().optional(),
+  ciudad: z.string().optional(),
+  provincia: z.string().optional(),
+  codigo_postal: z.string().optional(),
 });
 
 type PatientFormData = z.infer<typeof patientSchema>;
@@ -49,6 +58,11 @@ export const PatientsManager = () => {
       nombre: "",
       apellidos: "",
       telefono: "",
+      nif_dni: "",
+      direccion: "",
+      ciudad: "",
+      provincia: "",
+      codigo_postal: "",
     },
   });
 
@@ -120,6 +134,11 @@ export const PatientsManager = () => {
           nombre: data.nombre,
           apellidos: data.apellidos,
           telefono: data.telefono,
+          nif_dni: data.nif_dni || null,
+          direccion: data.direccion || null,
+          ciudad: data.ciudad || null,
+          provincia: data.provincia || null,
+          codigo_postal: data.codigo_postal || null,
         })
         .eq("id", editingPatient.id);
 
@@ -168,13 +187,31 @@ export const PatientsManager = () => {
     }
   };
 
-  const handleEdit = (patient: Patient) => {
+  const handleEdit = async (patient: Patient) => {
+    // Fetch full patient details including invoice fields
+    const { data: patientData, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", patient.id)
+      .single();
+
+    if (error) {
+      toast.error("Error al cargar datos del paciente");
+      console.error(error);
+      return;
+    }
+
     setEditingPatient(patient);
     form.reset({
       email: "",
-      nombre: patient.nombre,
-      apellidos: patient.apellidos,
-      telefono: patient.telefono,
+      nombre: patientData.nombre,
+      apellidos: patientData.apellidos,
+      telefono: patientData.telefono || "",
+      nif_dni: patientData.nif_dni || "",
+      direccion: patientData.direccion || "",
+      ciudad: patientData.ciudad || "",
+      provincia: patientData.provincia || "",
+      codigo_postal: patientData.codigo_postal || "",
     });
     setIsDialogOpen(true);
   };
@@ -194,6 +231,11 @@ export const PatientsManager = () => {
       nombre: "",
       apellidos: "",
       telefono: "",
+      nif_dni: "",
+      direccion: "",
+      ciudad: "",
+      provincia: "",
+      codigo_postal: "",
     });
   };
 
@@ -305,6 +347,91 @@ export const PatientsManager = () => {
                         <FormControl>
                           <Input
                             className="bg-background border-border text-foreground"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="nif_dni"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground">NIF/DNI</FormLabel>
+                        <FormControl>
+                          <Input
+                            className="bg-background border-border text-foreground"
+                            placeholder="12345678A"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="direccion"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground">Dirección</FormLabel>
+                        <FormControl>
+                          <Input
+                            className="bg-background border-border text-foreground"
+                            placeholder="Calle, número, piso, puerta"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="ciudad"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground">Ciudad</FormLabel>
+                          <FormControl>
+                            <Input
+                              className="bg-background border-border text-foreground"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="provincia"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground">Provincia</FormLabel>
+                          <FormControl>
+                            <Input
+                              className="bg-background border-border text-foreground"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="codigo_postal"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground">Código Postal</FormLabel>
+                        <FormControl>
+                          <Input
+                            className="bg-background border-border text-foreground"
+                            placeholder="28001"
                             {...field}
                           />
                         </FormControl>
