@@ -6,11 +6,29 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { User, Phone, Calendar, Clock, Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { User, Phone, Calendar, Clock, Search, Plus, Pencil } from "lucide-react";
+import { z } from "zod";
+import { validateNIF } from "@/lib/nif-validator";
+
+const patientSchema = z.object({
+  nombre: z.string().min(1, "El nombre es requerido"),
+  apellidos: z.string().min(1, "Los apellidos son requeridos"),
+  telefono: z.string().min(9, "El teléfono debe tener al menos 9 dígitos"),
+  nif_dni: z.string().optional().refine(
+    (val) => !val || validateNIF(val),
+    "NIF/DNI inválido"
+  ),
+  direccion: z.string().optional(),
+  ciudad: z.string().optional(),
+  provincia: z.string().optional(),
+  codigo_postal: z.string().optional(),
+});
 
 export const PatientsManager = () => {
   const { user } = useAuth();
@@ -20,6 +38,19 @@ export const PatientsManager = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [patientAppointments, setPatientAppointments] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const [editingPatient, setEditingPatient] = useState<any>(null);
+  const [formData, setFormData] = useState({
+    nombre: "",
+    apellidos: "",
+    telefono: "",
+    nif_dni: "",
+    direccion: "",
+    ciudad: "",
+    provincia: "",
+    codigo_postal: "",
+  });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (user) {
@@ -90,6 +121,78 @@ export const PatientsManager = () => {
     }
   };
 
+  const openAddPatientDialog = () => {
+    setEditingPatient(null);
+    setFormData({
+      nombre: "",
+      apellidos: "",
+      telefono: "",
+      nif_dni: "",
+      direccion: "",
+      ciudad: "",
+      provincia: "",
+      codigo_postal: "",
+    });
+    setFormErrors({});
+    setIsFormDialogOpen(true);
+  };
+
+  const openEditPatientDialog = (patient: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingPatient(patient);
+    setFormData({
+      nombre: patient.nombre || "",
+      apellidos: patient.apellidos || "",
+      telefono: patient.telefono || "",
+      nif_dni: patient.nif_dni || "",
+      direccion: patient.direccion || "",
+      ciudad: patient.ciudad || "",
+      provincia: patient.provincia || "",
+      codigo_postal: patient.codigo_postal || "",
+    });
+    setFormErrors({});
+    setIsFormDialogOpen(true);
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormErrors({});
+
+    try {
+      patientSchema.parse(formData);
+
+      if (editingPatient) {
+        // Update existing patient
+        const { error } = await supabase
+          .from("profiles")
+          .update(formData)
+          .eq("id", editingPatient.id);
+
+        if (error) throw error;
+        toast.success("Paciente actualizado correctamente");
+      } else {
+        // For adding new patient, we need to create a user first
+        toast.error("La funcionalidad de añadir nuevos pacientes requiere que el paciente se registre primero en el sistema");
+        return;
+      }
+
+      setIsFormDialogOpen(false);
+      fetchPatients();
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errors: Record<string, string> = {};
+        error.errors.forEach((err) => {
+          if (err.path[0]) {
+            errors[err.path[0] as string] = err.message;
+          }
+        });
+        setFormErrors(errors);
+      } else {
+        toast.error("Error al guardar el paciente");
+      }
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-8">Cargando...</div>;
   }
@@ -109,8 +212,16 @@ export const PatientsManager = () => {
     <>
       <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-foreground">Mis Pacientes</CardTitle>
-          <CardDescription>Haz clic en un paciente para ver sus detalles</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-foreground">Mis Pacientes</CardTitle>
+              <CardDescription>Haz clic en un paciente para ver sus detalles</CardDescription>
+            </div>
+            <Button onClick={openAddPatientDialog} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Añadir Paciente
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {patients.length === 0 ? (
@@ -135,6 +246,7 @@ export const PatientsManager = () => {
                   <TableHead className="text-muted-foreground">Nombre</TableHead>
                   <TableHead className="text-muted-foreground">Teléfono</TableHead>
                   <TableHead className="text-muted-foreground">Total Citas</TableHead>
+                  <TableHead className="text-muted-foreground w-20">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -149,6 +261,15 @@ export const PatientsManager = () => {
                     </TableCell>
                     <TableCell className="text-foreground">{patient.telefono || "N/A"}</TableCell>
                     <TableCell className="text-foreground">{patient.totalAppointments}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => openEditPatientDialog(patient, e)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -268,6 +389,118 @@ export const PatientsManager = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add/Edit Patient Dialog */}
+      <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
+        <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground text-2xl">
+              {editingPatient ? "Editar Paciente" : "Añadir Paciente"}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <form onSubmit={handleFormSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="nombre">Nombre *</Label>
+                <Input
+                  id="nombre"
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                  className={formErrors.nombre ? "border-destructive" : ""}
+                />
+                {formErrors.nombre && (
+                  <p className="text-sm text-destructive">{formErrors.nombre}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="apellidos">Apellidos *</Label>
+                <Input
+                  id="apellidos"
+                  value={formData.apellidos}
+                  onChange={(e) => setFormData({ ...formData, apellidos: e.target.value })}
+                  className={formErrors.apellidos ? "border-destructive" : ""}
+                />
+                {formErrors.apellidos && (
+                  <p className="text-sm text-destructive">{formErrors.apellidos}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="telefono">Teléfono *</Label>
+                <Input
+                  id="telefono"
+                  value={formData.telefono}
+                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                  className={formErrors.telefono ? "border-destructive" : ""}
+                />
+                {formErrors.telefono && (
+                  <p className="text-sm text-destructive">{formErrors.telefono}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="nif_dni">NIF/DNI</Label>
+                <Input
+                  id="nif_dni"
+                  value={formData.nif_dni}
+                  onChange={(e) => setFormData({ ...formData, nif_dni: e.target.value })}
+                  className={formErrors.nif_dni ? "border-destructive" : ""}
+                />
+                {formErrors.nif_dni && (
+                  <p className="text-sm text-destructive">{formErrors.nif_dni}</p>
+                )}
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="direccion">Dirección</Label>
+                <Input
+                  id="direccion"
+                  value={formData.direccion}
+                  onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="ciudad">Ciudad</Label>
+                <Input
+                  id="ciudad"
+                  value={formData.ciudad}
+                  onChange={(e) => setFormData({ ...formData, ciudad: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="provincia">Provincia</Label>
+                <Input
+                  id="provincia"
+                  value={formData.provincia}
+                  onChange={(e) => setFormData({ ...formData, provincia: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="codigo_postal">Código Postal</Label>
+                <Input
+                  id="codigo_postal"
+                  value={formData.codigo_postal}
+                  onChange={(e) => setFormData({ ...formData, codigo_postal: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={() => setIsFormDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit">
+                {editingPatient ? "Guardar Cambios" : "Añadir Paciente"}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </>
