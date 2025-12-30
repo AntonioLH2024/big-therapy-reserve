@@ -671,50 +671,111 @@ export const AppointmentsManager = () => {
             </div>
           </div>
         ) : (
-          // Vista de calendario mensual
-          <div className="flex justify-center">
-            <Calendar
-              mode="single"
-              month={calendarMonth}
-              onMonthChange={setCalendarMonth}
-              locale={es}
-              weekStartsOn={1}
-              className="rounded-md border border-border pointer-events-auto"
-              components={{
-                DayContent: ({ date }) => {
-                  const dayAppointments = getAppointmentsForDate(date, "month");
-                  const hasAppointments = dayAppointments.length > 0;
+          // Vista de calendario mensual con detalles de citas
+          <div className="space-y-4">
+            {/* Navegación del mes */}
+            <div className="flex items-center justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCalendarMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Anterior
+              </Button>
+              <span className="font-medium text-foreground capitalize">
+                {format(calendarMonth, "MMMM yyyy", { locale: es })}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCalendarMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+              >
+                Siguiente
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+
+            {/* Cabecera de días de la semana */}
+            <div className="grid grid-cols-7 gap-1">
+              {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((day) => (
+                <div key={day} className="text-center text-xs font-medium text-muted-foreground py-2">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Grid del calendario */}
+            <div className="grid grid-cols-7 gap-1">
+              {(() => {
+                const monthStart = startOfMonth(calendarMonth);
+                const monthEnd = endOfMonth(calendarMonth);
+                const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
+                const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
+                
+                const days = [];
+                let currentDate = startDate;
+                
+                while (currentDate <= endDate) {
+                  days.push(new Date(currentDate));
+                  currentDate = addDays(currentDate, 1);
+                }
+                
+                return days.map((day) => {
+                  const dayAppts = getAppointmentsForDate(day, "month");
+                  const isToday = isSameDay(day, new Date());
+                  const isCurrentMonth = day.getMonth() === calendarMonth.getMonth();
                   
                   return (
                     <div
+                      key={day.toISOString()}
                       className={cn(
-                        "w-full h-full flex flex-col items-center justify-center cursor-pointer min-h-[40px] relative",
-                        hasAppointments && "font-bold"
+                        "border border-border rounded-md p-1 min-h-[100px] bg-background",
+                        !isCurrentMonth && "opacity-40 bg-muted/30",
+                        isToday && "ring-2 ring-primary"
                       )}
-                      onClick={() => hasAppointments && handleCalendarDayClick(date)}
                     >
-                      <span>{date.getDate()}</span>
-                      {hasAppointments && (
-                        <div className="flex gap-0.5 mt-0.5">
-                          {dayAppointments.slice(0, 3).map((apt, idx) => (
-                            <div
-                              key={idx}
-                              className={cn(
-                                "w-1.5 h-1.5 rounded-full",
-                                getStatusColor(apt.estado)
-                              )}
-                            />
-                          ))}
-                          {dayAppointments.length > 3 && (
-                            <span className="text-[8px] text-muted-foreground">+{dayAppointments.length - 3}</span>
-                          )}
-                        </div>
-                      )}
+                      {/* Número del día */}
+                      <div className={cn(
+                        "text-xs font-medium mb-1",
+                        isToday ? "text-primary" : "text-muted-foreground"
+                      )}>
+                        {format(day, "d")}
+                      </div>
+                      
+                      {/* Citas del día */}
+                      <div className="space-y-0.5 max-h-[80px] overflow-y-auto">
+                        {dayAppts.slice(0, 3).map((apt) => (
+                          <div
+                            key={apt.id}
+                            className={cn(
+                              "text-[10px] p-1 rounded cursor-pointer hover:opacity-80 transition-opacity truncate",
+                              apt.estado === "programada" && "bg-blue-500/20 text-blue-700 dark:text-blue-300",
+                              apt.estado === "completada" && "bg-green-500/20 text-green-700 dark:text-green-300",
+                              apt.estado === "cancelada" && "bg-red-500/20 text-red-700 dark:text-red-300 line-through"
+                            )}
+                            onClick={() => handleEdit(apt)}
+                            title={`${format(new Date(apt.fecha_hora), "HH:mm")} - ${apt.paciente?.nombre} ${apt.paciente?.apellidos}`}
+                          >
+                            <span className="font-semibold">{format(new Date(apt.fecha_hora), "HH:mm")}</span>
+                            {" "}
+                            <span>{apt.paciente?.nombre}</span>
+                          </div>
+                        ))}
+                        {dayAppts.length > 3 && (
+                          <div
+                            className="text-[10px] text-center text-muted-foreground cursor-pointer hover:text-foreground"
+                            onClick={() => handleCalendarDayClick(day)}
+                          >
+                            +{dayAppts.length - 3} más
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
-                },
-              }}
-            />
+                });
+              })()}
+            </div>
           </div>
         )}
       </CardContent>
