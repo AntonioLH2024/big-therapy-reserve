@@ -11,13 +11,13 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
-import { format, startOfMonth, endOfMonth, isSameDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
-import { Plus, Pencil, Trash2, Check, ChevronsUpDown, Clock, CalendarDays, List, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, ChevronsUpDown, Clock, CalendarDays, List, X, ChevronLeft, ChevronRight, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
-type ViewMode = "list" | "calendar";
+type ViewMode = "list" | "calendar" | "week";
 
 export const AppointmentsManager = () => {
   const { user } = useAuth();
@@ -29,6 +29,8 @@ export const AppointmentsManager = () => {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [weekAppointments, setWeekAppointments] = useState<any[]>([]);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | null>(null);
   const [dayAppointmentsDialogOpen, setDayAppointmentsDialogOpen] = useState(false);
 
@@ -60,6 +62,12 @@ export const AppointmentsManager = () => {
       fetchMonthAppointments();
     }
   }, [calendarMonth, user, viewMode]);
+
+  useEffect(() => {
+    if (user && viewMode === "week") {
+      fetchWeekAppointments();
+    }
+  }, [currentWeekStart, user, viewMode]);
 
   useEffect(() => {
     if (newAppointmentDate && user) {
@@ -155,8 +163,32 @@ export const AppointmentsManager = () => {
     }
   };
 
-  const getAppointmentsForDate = (date: Date) => {
-    return monthAppointments.filter((apt) =>
+  const fetchWeekAppointments = async () => {
+    if (!user) return;
+
+    const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
+
+    const { data, error } = await supabase
+      .from("citas")
+      .select(`
+        *,
+        paciente:profiles!citas_paciente_id_fkey(nombre, apellidos)
+      `)
+      .eq("psicologo_id", user.id)
+      .gte("fecha_hora", currentWeekStart.toISOString())
+      .lte("fecha_hora", weekEnd.toISOString())
+      .order("fecha_hora");
+
+    if (error) {
+      console.error("Error fetching week appointments:", error);
+    } else {
+      setWeekAppointments(data || []);
+    }
+  };
+
+  const getAppointmentsForDate = (date: Date, source: "month" | "week" = "month") => {
+    const appointments = source === "week" ? weekAppointments : monthAppointments;
+    return appointments.filter((apt) =>
       isSameDay(new Date(apt.fecha_hora), date)
     );
   };
@@ -164,6 +196,20 @@ export const AppointmentsManager = () => {
   const handleCalendarDayClick = (date: Date) => {
     setSelectedCalendarDate(date);
     setDayAppointmentsDialogOpen(true);
+  };
+
+  const getWeekDays = () => {
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      days.push(addDays(currentWeekStart, i));
+    }
+    return days;
+  };
+
+  const navigateWeek = (direction: "prev" | "next") => {
+    setCurrentWeekStart((prev) =>
+      addDays(prev, direction === "next" ? 7 : -7)
+    );
   };
 
   const getStatusColor = (estado: string) => {
@@ -271,7 +317,7 @@ export const AppointmentsManager = () => {
       <CardHeader className="flex flex-row items-center justify-between">
         <div className="flex items-center gap-4">
           <CardTitle className="text-foreground">
-            {viewMode === "list" ? "Citas del Día" : "Calendario de Citas"}
+            {viewMode === "list" ? "Citas del Día" : viewMode === "week" ? "Vista Semanal" : "Calendario de Citas"}
           </CardTitle>
           <div className="flex border border-border rounded-md overflow-hidden">
             <Button
@@ -279,14 +325,25 @@ export const AppointmentsManager = () => {
               size="sm"
               onClick={() => setViewMode("list")}
               className="rounded-none"
+              title="Vista de lista"
             >
               <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "week" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("week")}
+              className="rounded-none"
+              title="Vista semanal"
+            >
+              <LayoutGrid className="h-4 w-4" />
             </Button>
             <Button
               variant={viewMode === "calendar" ? "default" : "ghost"}
               size="sm"
               onClick={() => setViewMode("calendar")}
               className="rounded-none"
+              title="Vista mensual"
             >
               <CalendarDays className="h-4 w-4" />
             </Button>
@@ -528,6 +585,91 @@ export const AppointmentsManager = () => {
               </TableBody>
             </Table>
           )
+        ) : viewMode === "week" ? (
+          // Vista semanal
+          <div className="space-y-4">
+            {/* Navegación de semana */}
+            <div className="flex items-center justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigateWeek("prev")}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Anterior
+              </Button>
+              <span className="font-medium text-foreground">
+                {format(currentWeekStart, "d MMM", { locale: es })} - {format(addDays(currentWeekStart, 6), "d MMM yyyy", { locale: es })}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigateWeek("next")}
+              >
+                Siguiente
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+
+            {/* Grid de días de la semana */}
+            <div className="grid grid-cols-7 gap-2">
+              {getWeekDays().map((day) => {
+                const dayAppts = getAppointmentsForDate(day, "week");
+                const isToday = isSameDay(day, new Date());
+
+                return (
+                  <div
+                    key={day.toISOString()}
+                    className={cn(
+                      "border border-border rounded-lg p-2 min-h-[200px] bg-background",
+                      isToday && "ring-2 ring-primary"
+                    )}
+                  >
+                    {/* Header del día */}
+                    <div className={cn(
+                      "text-center pb-2 border-b border-border mb-2",
+                      isToday && "text-primary font-bold"
+                    )}>
+                      <div className="text-xs text-muted-foreground uppercase">
+                        {format(day, "EEE", { locale: es })}
+                      </div>
+                      <div className="text-lg font-semibold">
+                        {format(day, "d")}
+                      </div>
+                    </div>
+
+                    {/* Citas del día */}
+                    <div className="space-y-1 max-h-[150px] overflow-y-auto">
+                      {dayAppts.length === 0 ? (
+                        <p className="text-xs text-muted-foreground text-center py-2">Sin citas</p>
+                      ) : (
+                        dayAppts.map((apt) => (
+                          <div
+                            key={apt.id}
+                            className={cn(
+                              "text-xs p-1.5 rounded cursor-pointer hover:opacity-80 transition-opacity",
+                              apt.estado === "programada" && "bg-blue-500/20 border-l-2 border-blue-500",
+                              apt.estado === "completada" && "bg-green-500/20 border-l-2 border-green-500",
+                              apt.estado === "cancelada" && "bg-red-500/20 border-l-2 border-red-500"
+                            )}
+                            onClick={() => handleEdit(apt)}
+                            title={`${apt.paciente?.nombre} ${apt.paciente?.apellidos} - ${apt.servicio}`}
+                          >
+                            <div className="font-medium text-foreground">
+                              {format(new Date(apt.fecha_hora), "HH:mm")}
+                            </div>
+                            <div className="text-muted-foreground truncate">
+                              {apt.paciente?.nombre} {apt.paciente?.apellidos?.charAt(0)}.
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         ) : (
           // Vista de calendario mensual
           <div className="flex justify-center">
@@ -540,7 +682,7 @@ export const AppointmentsManager = () => {
               className="rounded-md border border-border pointer-events-auto"
               components={{
                 DayContent: ({ date }) => {
-                  const dayAppointments = getAppointmentsForDate(date);
+                  const dayAppointments = getAppointmentsForDate(date, "month");
                   const hasAppointments = dayAppointments.length > 0;
                   
                   return (
