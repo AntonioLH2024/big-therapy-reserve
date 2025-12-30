@@ -11,18 +11,26 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
-import { Plus, Pencil, Trash2, Check, ChevronsUpDown, Clock } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, ChevronsUpDown, Clock, CalendarDays, List, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+
+type ViewMode = "list" | "calendar";
 
 export const AppointmentsManager = () => {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [monthAppointments, setMonthAppointments] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | null>(null);
+  const [dayAppointmentsDialogOpen, setDayAppointmentsDialogOpen] = useState(false);
 
   // Form state
   const [selectedPatientId, setSelectedPatientId] = useState<string>("");
@@ -43,8 +51,15 @@ export const AppointmentsManager = () => {
     if (user) {
       fetchAppointments();
       fetchPatients();
+      fetchMonthAppointments();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (user && viewMode === "calendar") {
+      fetchMonthAppointments();
+    }
+  }, [calendarMonth, user, viewMode]);
 
   useEffect(() => {
     if (newAppointmentDate && user) {
@@ -113,6 +128,54 @@ export const AppointmentsManager = () => {
       toast.error("Error al cargar pacientes");
     } else {
       setPatients((data || []).map((item: any) => item.profiles));
+    }
+  };
+
+  const fetchMonthAppointments = async () => {
+    if (!user) return;
+
+    const monthStart = startOfMonth(calendarMonth);
+    const monthEnd = endOfMonth(calendarMonth);
+
+    const { data, error } = await supabase
+      .from("citas")
+      .select(`
+        *,
+        paciente:profiles!citas_paciente_id_fkey(nombre, apellidos)
+      `)
+      .eq("psicologo_id", user.id)
+      .gte("fecha_hora", monthStart.toISOString())
+      .lte("fecha_hora", monthEnd.toISOString())
+      .order("fecha_hora");
+
+    if (error) {
+      console.error("Error fetching month appointments:", error);
+    } else {
+      setMonthAppointments(data || []);
+    }
+  };
+
+  const getAppointmentsForDate = (date: Date) => {
+    return monthAppointments.filter((apt) =>
+      isSameDay(new Date(apt.fecha_hora), date)
+    );
+  };
+
+  const handleCalendarDayClick = (date: Date) => {
+    setSelectedCalendarDate(date);
+    setDayAppointmentsDialogOpen(true);
+  };
+
+  const getStatusColor = (estado: string) => {
+    switch (estado) {
+      case "programada":
+        return "bg-blue-500";
+      case "completada":
+        return "bg-green-500";
+      case "cancelada":
+        return "bg-red-500";
+      default:
+        return "bg-muted";
     }
   };
 
@@ -206,7 +269,29 @@ export const AppointmentsManager = () => {
   return (
     <Card className="bg-card border-border">
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-foreground">Citas del Día</CardTitle>
+        <div className="flex items-center gap-4">
+          <CardTitle className="text-foreground">
+            {viewMode === "list" ? "Citas del Día" : "Calendario de Citas"}
+          </CardTitle>
+          <div className="flex border border-border rounded-md overflow-hidden">
+            <Button
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("list")}
+              className="rounded-none"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "calendar" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("calendar")}
+              className="rounded-none"
+            >
+              <CalendarDays className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <Button onClick={() => { setEditingAppointment(null); setIsDialogOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" />
@@ -415,33 +500,153 @@ export const AppointmentsManager = () => {
         </Dialog>
       </CardHeader>
       <CardContent>
-        {appointments.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">No hay citas para hoy</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="border-border">
-                <TableHead className="text-muted-foreground">Hora</TableHead>
-                <TableHead className="text-muted-foreground">Paciente</TableHead>
-                <TableHead className="text-muted-foreground">Servicio</TableHead>
-                <TableHead className="text-muted-foreground">Estado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {appointments.map((appointment) => (
-                <TableRow key={appointment.id} className="border-border">
-                  <TableCell className="text-foreground">{format(new Date(appointment.fecha_hora), "HH:mm")}</TableCell>
-                  <TableCell className="text-foreground">
-                    {appointment.paciente?.nombre} {appointment.paciente?.apellidos}
-                  </TableCell>
-                  <TableCell className="text-foreground">{appointment.servicio}</TableCell>
-                  <TableCell className="text-foreground">{appointment.estado}</TableCell>
+        {viewMode === "list" ? (
+          // Vista de lista (citas del día)
+          appointments.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No hay citas para hoy</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border">
+                  <TableHead className="text-muted-foreground">Hora</TableHead>
+                  <TableHead className="text-muted-foreground">Paciente</TableHead>
+                  <TableHead className="text-muted-foreground">Servicio</TableHead>
+                  <TableHead className="text-muted-foreground">Estado</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {appointments.map((appointment) => (
+                  <TableRow key={appointment.id} className="border-border">
+                    <TableCell className="text-foreground">{format(new Date(appointment.fecha_hora), "HH:mm")}</TableCell>
+                    <TableCell className="text-foreground">
+                      {appointment.paciente?.nombre} {appointment.paciente?.apellidos}
+                    </TableCell>
+                    <TableCell className="text-foreground">{appointment.servicio}</TableCell>
+                    <TableCell className="text-foreground">{appointment.estado}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )
+        ) : (
+          // Vista de calendario mensual
+          <div className="flex justify-center">
+            <Calendar
+              mode="single"
+              month={calendarMonth}
+              onMonthChange={setCalendarMonth}
+              locale={es}
+              weekStartsOn={1}
+              className="rounded-md border border-border pointer-events-auto"
+              components={{
+                DayContent: ({ date }) => {
+                  const dayAppointments = getAppointmentsForDate(date);
+                  const hasAppointments = dayAppointments.length > 0;
+                  
+                  return (
+                    <div
+                      className={cn(
+                        "w-full h-full flex flex-col items-center justify-center cursor-pointer min-h-[40px] relative",
+                        hasAppointments && "font-bold"
+                      )}
+                      onClick={() => hasAppointments && handleCalendarDayClick(date)}
+                    >
+                      <span>{date.getDate()}</span>
+                      {hasAppointments && (
+                        <div className="flex gap-0.5 mt-0.5">
+                          {dayAppointments.slice(0, 3).map((apt, idx) => (
+                            <div
+                              key={idx}
+                              className={cn(
+                                "w-1.5 h-1.5 rounded-full",
+                                getStatusColor(apt.estado)
+                              )}
+                            />
+                          ))}
+                          {dayAppointments.length > 3 && (
+                            <span className="text-[8px] text-muted-foreground">+{dayAppointments.length - 3}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                },
+              }}
+            />
+          </div>
         )}
       </CardContent>
+
+      {/* Dialog para ver citas del día seleccionado */}
+      <Dialog open={dayAppointmentsDialogOpen} onOpenChange={setDayAppointmentsDialogOpen}>
+        <DialogContent className="bg-card border-border max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2">
+              <CalendarDays className="h-5 w-5" />
+              Citas del {selectedCalendarDate && format(selectedCalendarDate, "d 'de' MMMM, yyyy", { locale: es })}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+            {selectedCalendarDate && getAppointmentsForDate(selectedCalendarDate).length === 0 ? (
+              <p className="text-center text-muted-foreground py-4">No hay citas para este día</p>
+            ) : (
+              selectedCalendarDate && getAppointmentsForDate(selectedCalendarDate).map((appointment) => (
+                <div
+                  key={appointment.id}
+                  className="p-4 rounded-lg border border-border bg-muted/30 space-y-2"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-semibold text-foreground">
+                        {format(new Date(appointment.fecha_hora), "HH:mm")}
+                      </span>
+                    </div>
+                    <Badge
+                      variant="secondary"
+                      className={cn(
+                        "text-white",
+                        getStatusColor(appointment.estado)
+                      )}
+                    >
+                      {appointment.estado}
+                    </Badge>
+                  </div>
+                  <div className="text-sm space-y-1">
+                    <p className="text-foreground">
+                      <span className="text-muted-foreground">Paciente:</span>{" "}
+                      {appointment.paciente?.nombre} {appointment.paciente?.apellidos}
+                    </p>
+                    <p className="text-foreground">
+                      <span className="text-muted-foreground">Servicio:</span>{" "}
+                      {appointment.servicio}
+                    </p>
+                    {appointment.notas && (
+                      <p className="text-foreground">
+                        <span className="text-muted-foreground">Notas:</span>{" "}
+                        {appointment.notas}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setDayAppointmentsDialogOpen(false);
+                        handleEdit(appointment);
+                      }}
+                    >
+                      <Pencil className="h-3 w-3 mr-1" />
+                      Editar
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
